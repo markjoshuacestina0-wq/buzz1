@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EventBuzz - Events</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>🎟 EventBuzz</h1>
+    <nav>
+      <a href="index.html">Events</a>
+      <a href="admin.html">Create Event</a>
+      <a href="checkin.html">Check-in</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Upcoming Events</h2>
+    <input type="text" id="search" placeholder="Search events...">
+    <button onclick="sortEvents()">Sort by Date</button>
+    <div id="event-list"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

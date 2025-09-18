@@ -1,0 +1,28 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background: #f8f8f8;
+  color: #333;
+}
+header, nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+nav a {
+  margin-left: 10px;
+}
+#seat-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 30px);
+  gap: 5px;
+}
+.seat {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #555;
+  text-align: center;
+  cursor: pointer;
+}
+.seat.selected { background: green; color: white; }
+.seat.reserved { background: red; color: white; cursor: not-allowed; }

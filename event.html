@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EventBuzz - Event</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <a href="index.html">⬅ Back</a>
+    <h1 id="event-title"></h1>
+  </header>
+
+  <main>
+    <p id="event-description"></p>
+    <p><strong>Date:</strong> <span id="event-date"></span></p>
+    <p><strong>Venue:</strong> <span id="event-venue"></span></p>
+    <h3>Select Seats</h3>
+    <div id="seat-map"></div>
+    <p id="summary">0 seats selected | Total: $0</p>
+
+    <h3>Checkout</h3>
+    <form id="checkout-form">
+      <input type="text" id="buyer-name" placeholder="Your Name" required>
+      <input type="email" id="buyer-email" placeholder="Your Email" required>
+      <button type="submit">Pay (Simulated)</button>
+    </form>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
