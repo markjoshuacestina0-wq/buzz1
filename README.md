@@ -4,7 +4,7 @@ A minimalist, modern front-end prototype for event discovery, seat selection, si
 
 ## Run
 
-- Open `index.html` in a modern browser (Chrome/Edge/Firefox). No server required.
+- Open `index.html` in a modern browser (Chrome/Edge/Firefox). No server required..
 
 ## Features
 
@@ -44,5 +44,6 @@ Payment is simulated. Clicking “Pay (Simulated)” creates the ticket, reserve
 - CSV export of attendee list
 - More seat map legends and sections
 - Multiple tickets per order and order history view
+
 
 
