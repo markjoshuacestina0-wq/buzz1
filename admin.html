@@ -1,26 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EventBuzz - Admin</title>
   <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body>
-  <h1>Create Event</h1>
-  <form id="create-event-form">
-    <input type="text" id="title" placeholder="Event Title" required>
-    <textarea id="description" placeholder="Description" required></textarea>
-    <input type="date" id="date" required>
-    <input type="text" id="venue" placeholder="Venue" required>
-    <input type="number" id="rows" placeholder="Rows" required>
-    <input type="number" id="cols" placeholder="Columns" required>
-    <input type="number" id="price" placeholder="Ticket Price" required>
-    <button type="submit">Create Event</button>
-  </form>
 
-  <h2>Existing Events</h2>
-  <div id="admin-event-list"></div>
+<body>
+  <header>
+    <h1>Admin · EventBuzz</h1>
+    <nav>
+      <a href="user.html">User</a>
+      <a href="checkin.html">Check-in</a>
+      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card" style="padding:16px; margin-bottom:12px; background:#ffffffdd;">
+      <div class="card-body">
+        <h2 style="margin-top:0;">Create and Manage Events</h2>
+        <p class="muted">Only admins can access this page.</p>
+      </div>
+    </section>
+    <h2>Create / Edit Event</h2>
+    <form id="create-event-form" class="card" style="padding: 16px; display: grid; gap: 10px;">
+      <input type="text" id="title" placeholder="Event Title" required>
+      <textarea id="description" placeholder="Description" required></textarea>
+      <input type="datetime-local" id="date" required>
+      <input type="text" id="venue" placeholder="Venue" required>
+      <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+        <input type="number" id="rows" placeholder="Rows" min="1" required>
+        <input type="number" id="cols" placeholder="Columns" min="1" required>
+        <input type="number" id="price" placeholder="Ticket Price" step="0.01" min="0" required>
+      </div>
+      <div style="display:flex; gap: 8px;">
+        <button type="submit" class="btn">Save</button>
+        <button type="reset" class="btn light" onclick="this.form.removeAttribute('data-editing')">Clear</button>
+      </div>
+    </form>
+
+    <h2 style="margin-top:20px;">Existing Events</h2>
+    <div id="admin-event-list" class="grid"></div>
+    <footer class="muted" style="margin-top:28px;">
+      <p>© <span id="year-admin"></span> EventBuzz</p>
+    </footer>
+  </main>
 
   <script src="app.js"></script>
+  <script>document.getElementById('year-admin').textContent = new Date().getFullYear();</script>
 </body>
+
 </html>

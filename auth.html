@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>EventBuzz - Sign in / Register</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .auth-wrap {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            max-width: 960px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .floating {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            position: relative;
+            top: 0;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating:nth-child(2) {
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-6px);
+            }
+        }
+
+        .tab {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .tab button {
+            background: #eef2ff;
+            color: #3730a3;
+            border: 1px solid #c7d2fe;
+        }
+
+        .tab button.active {
+            background: #c7d2fe;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Account · EventBuzz</h1>
+        <nav>
+            <a href="index.html">Events</a>
+            <a href="auth.html" class="btn light">Login / Register</a>
+        </nav>
+    </header>
+    <main>
+        <div class="auth-wrap">
+            <div class="card floating">
+                <div class="card-body">
+                    <h2>Admin</h2>
+                    <div class="tab">
+                        <button class="btn light active" id="admin-login-tab">Login</button>
+                        <button class="btn light" id="admin-register-tab">Register</button>
+                    </div>
+                    <form id="admin-login" class="auth-form">
+                        <input placeholder="Email" type="email" id="admin-login-email" required>
+                        <input placeholder="Password" type="password" id="admin-login-pass" required>
+                        <button class="btn" type="submit">Login as Admin</button>
+                    </form>
+                    <form id="admin-register" class="auth-form" style="display:none;">
+                        <input placeholder="Name" id="admin-reg-name" required>
+                        <input placeholder="Email" type="email" id="admin-reg-email" required>
+                        <input placeholder="Password" type="password" id="admin-reg-pass" required>
+                        <button class="btn" type="submit">Create Admin</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card floating">
+                <div class="card-body">
+                    <h2>User</h2>
+                    <div class="tab">
+                        <button class="btn light active" id="user-login-tab">Login</button>
+                        <button class="btn light" id="user-register-tab">Register</button>
+                    </div>
+                    <form id="user-login" class="auth-form">
+                        <input placeholder="Email" type="email" id="user-login-email" required>
+                        <input placeholder="Password" type="password" id="user-login-pass" required>
+                        <button class="btn" type="submit">Login as User</button>
+                    </form>
+                    <form id="user-register" class="auth-form" style="display:none;">
+                        <input placeholder="Name" id="user-reg-name" required>
+                        <input placeholder="Email" type="email" id="user-reg-email" required>
+                        <input placeholder="Password" type="password" id="user-reg-pass" required>
+                        <button class="btn" type="submit">Create User</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        // Simple tab toggles
+        function setupTabs(prefix) {
+            const loginTab = document.getElementById(prefix + '-login-tab');
+            const regTab = document.getElementById(prefix + '-register-tab');
+            const loginForm = document.getElementById(prefix + '-login');
+            const regForm = document.getElementById(prefix + '-register');
+            loginTab.addEventListener('click', () => { loginTab.classList.add('active'); regTab.classList.remove('active'); loginForm.style.display = 'block'; regForm.style.display = 'none'; });
+            regTab.addEventListener('click', () => { regTab.classList.add('active'); loginTab.classList.remove('active'); regForm.style.display = 'block'; loginForm.style.display = 'none'; });
+        }
+        setupTabs('admin');
+        setupTabs('user');
+    </script>
+</body>
+
+</html>

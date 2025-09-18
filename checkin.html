@@ -1,16 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EventBuzz - Check-in</title>
   <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/qr-scanner/qr-scanner.umd.min.js"></script>
 </head>
+
 <body>
-  <h1>Check-in</h1>
-  <input type="text" id="ticket-id" placeholder="Enter Ticket ID">
-  <button onclick="checkIn()">Validate Ticket</button>
-  <p id="checkin-result"></p>
+  <header>
+    <h1>Check-in</h1>
+    <nav>
+      <a href="user.html">User</a>
+      <a href="admin.html">Admin</a>
+      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card" style="padding:16px; display:grid; gap:10px; max-width:560px;">
+      <input type="text" id="ticket-id" placeholder="Enter Ticket ID">
+      <div style="display:flex; gap:8px; flex-wrap: wrap; align-items:center;">
+        <button class="btn" onclick="checkIn()">Validate</button>
+        <label class="btn light" style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <span>Upload QR Image</span>
+          <input id="qr-file" type="file" accept="image/*" style="display:none;">
+        </label>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div
+          style="width:120px; height:120px; border:2px dashed #a78bfa; border-radius:12px; background:#faf5ff; display:flex; align-items:center; justify-content:center; color:#6b21a8;">
+          QR</div>
+        <p class="muted">Tip: Paste the ID or upload a QR image to auto-fill.</p>
+      </div>
+      <p id="checkin-result"></p>
+    </div>
+  </main>
 
   <script src="app.js"></script>
 </body>
+
 </html>

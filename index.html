@@ -1,27 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EventBuzz - Events</title>
   <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
+
 <body>
   <header>
     <h1>🎟 EventBuzz</h1>
     <nav>
       <a href="index.html">Events</a>
-      <a href="admin.html">Create Event</a>
+      <a href="user.html">User</a>
+      <a href="admin.html">Admin</a>
       <a href="checkin.html">Check-in</a>
+      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
     </nav>
   </header>
 
   <main>
+    <section class="card" style="padding:16px; margin-bottom:12px; background: #ffffffdd;">
+      <div class="card-body">
+        <h2 style="margin-top:0;">Discover and Book Your Next Event</h2>
+        <p class="muted">Browse events, pick your seats, and get your QR ticket instantly.</p>
+      </div>
+    </section>
     <h2>Upcoming Events</h2>
-    <input type="text" id="search" placeholder="Search events...">
-    <button onclick="sortEvents()">Sort by Date</button>
+    <div class="grid" style="grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
+      <input type="text" id="search" placeholder="Search events, venues...">
+      <button class="btn" onclick="sortEvents()">Sort by Date</button>
+    </div>
     <div id="event-list"></div>
+    <footer class="muted" style="margin-top:28px;">
+      <p>© <span id="year"></span> EventBuzz · A client-side prototype. Payments are simulated.</p>
+    </footer>
   </main>
 
   <script src="app.js"></script>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
+
 </html>

@@ -1,17 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EventBuzz - Ticket</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
+
 <body>
-  <h1>Your Ticket</h1>
-  <div id="ticket"></div>
-  <canvas id="qrcode"></canvas>
-  <button onclick="window.print()">Print Ticket</button>
+  <header>
+    <h1>Your Ticket</h1>
+    <nav>
+      <a href="user.html">User</a>
+      <a href="checkin.html">Check-in</a>
+      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
+    </nav>
+  </header>
+  <main>
+    <div id="ticket" style="margin-bottom:12px;"></div>
+    <div class="card" style="padding:16px; display:flex; align-items:center; gap:16px; width:max-content;">
+      <canvas id="qrcode" width="200" height="200"></canvas>
+      <div class="muted">Scan this QR at the venue. Payment is simulated.</div>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px;">
+      <button class="btn" onclick="window.print()">Print Ticket</button>
+      <button class="btn light" id="email-receipt">Email Receipt</button>
+    </div>
+  </main>
 
   <script src="app.js"></script>
 </body>
+
 </html>

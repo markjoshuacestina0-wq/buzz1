@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>EventBuzz - User</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <header>
+        <h1>User · EventBuzz</h1>
+        <nav>
+            <a href="index.html">Events</a>
+            <a href="admin.html">Admin</a>
+            <a href="checkin.html">Check-in</a>
+        </nav>
+    </header>
+    <main>
+        <section class="card" style="padding:16px; margin-bottom:12px; background:#ffffffdd;">
+            <div class="card-body">
+                <h2 style="margin-top:0;">Welcome</h2>
+                <p class="muted">Manage your tickets and view recent purchases.</p>
+            </div>
+        </section>
+        <h2>My Latest Ticket</h2>
+        <div id="user-latest" class="grid"></div>
+
+        <h2 style="margin-top:20px;">All Tickets (this device)</h2>
+        <div id="user-tickets" class="grid"></div>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        (function () {
+            const wrap = (html) => `<div class=\"card\"><div class=\"card-body\">${html}</div></div>`;
+            const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+            const events = JSON.parse(localStorage.getItem('events') || '[]');
+            const byId = (id) => events.find(e => e.id === id);
+            const latest = tickets[tickets.length - 1];
+            const latestEl = document.getElementById('user-latest');
+            const allEl = document.getElementById('user-tickets');
+            if (!latest) {
+                latestEl.innerHTML = wrap('<p>No tickets yet.</p>');
+            } else {
+                const e = byId(latest.eventId);
+                latestEl.innerHTML = wrap(
+                    `<h3>${e.title}</h3>
+           <p class=muted>${new Date(e.date).toLocaleString()} · ${e.venue}</p>
+           <p><strong>Seats:</strong> ${latest.seats.map(s => {
+                        const [r, c] = s.split('-').map(Number);
+                        return String.fromCharCode(65 + r) + (c + 1);
+                    }).join(', ')}</p>
+           <div style=\"display:flex;gap:8px;\">
+             <a class=\"btn\" href=\"ticket.html\">View Ticket</a>
+           </div>`
+                );
+            }
+            allEl.innerHTML = '';
+            tickets.slice().reverse().forEach(t => {
+                const e = byId(t.eventId);
+                const checked = t.checkedIn ? '✔ Checked-in' : 'Not checked-in';
+                allEl.innerHTML += wrap(
+                    `<strong>${e.title}</strong>
+           <div class=muted>${new Date(e.date).toLocaleString()} · ${e.venue}</div>
+           <div>Seats: ${t.seats.map(s => { const [r, c] = s.split('-').map(Number); return String.fromCharCode(65 + r) + (c + 1); }).join(', ')}</div>
+           <div class=muted>Ticket ID: ${t.id} · ${checked}</div>`
+                );
+            });
+        })();
+    </script>
+    <footer class="muted" style="max-width:1000px; margin: 20px auto; padding: 0 16px;">
+        <p>© <span id="year-user"></span> EventBuzz</p>
+    </footer>
+    <script>document.getElementById('year-user').textContent = new Date().getFullYear();</script>
+</body>
+
+</html>
