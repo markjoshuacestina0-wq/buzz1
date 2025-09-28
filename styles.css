@@ -1,3 +1,32 @@
+/* Slide-up animation for OpeningAnimation popup */
+.slide-up {
+  animation: slideUp 0.6s;
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-200px);
+    opacity: 0.5;
+  }
+}
+/* Fade-in and fade-out animation for OpeningAnimation popup */
+.fade-in {
+  animation: fadeIn 0.6s;
+}
+.fade-out {
+  animation: fadeOut 0.6s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 :root {
   --bg: #f9fafb;
   --surface: #ffffffcc;
@@ -24,7 +53,33 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.LogoPanel{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.logoClass{
+  height: 20vh;
+  width: auto;
+  margin-top: 20px;
+}
+.OpeningAnimation{
+z-index: 100;
+position: absolute;
+background-color: #a2d4ec;
+height: 100vh;
+width: 100vw;
+top: 0px;
+left: 0px;
+justify-items: center;
+align-items: center;
+display: flex;
+}
+.OpeningText{
+font-size: 20vh;
 
+}
 header {
   display: flex;
   align-items: center;
@@ -91,7 +146,6 @@ button,
 }
 
 .btn.light {
-  background: var(--surface);
   border: 1px solid var(--border);
 }
 
@@ -102,7 +156,8 @@ button,
 }
 
 .account .btn.light:hover {
-  background: #ede9fe;
+  background: #eeeeee;
+  transition: transform .2s ease;
 }
 
 .btn.danger {

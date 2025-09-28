@@ -1,3 +1,17 @@
+// Show OpeningAnimation for 3 seconds after page load
+document.addEventListener('DOMContentLoaded', function() {
+  const popup = document.querySelector('.OpeningAnimation');
+  if (popup) {
+    popup.style.display = 'block';
+    setTimeout(() => {
+      popup.classList.add('slide-up');
+      setTimeout(() => {
+        popup.style.display = 'none';
+        popup.classList.remove('slide-up');
+      }, 600);
+    }, 2400);
+  }
+});
 // Minimal client-side data layer
 const STORAGE_KEYS = {
   events: "events",
@@ -5,7 +19,6 @@ const STORAGE_KEYS = {
   users: "users",
   currentUser: "currentUser"
 };
-
 function loadEvents() {
   let events = JSON.parse(localStorage.getItem(STORAGE_KEYS.events)) || [];
   if (events.length === 0) {
@@ -331,6 +344,11 @@ if (document.getElementById("seat-map")) {
 
   document.getElementById("checkout-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      alert("You must be signed in to book a ticket. Please login or register first.");
+      return;
+    }
     if (selectedSeats.length === 0) {
       alert("Please select at least one seat.");
       return;
