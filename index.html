@@ -12,15 +12,19 @@
   <header>
     <h1>🎟 EventBuzz</h1>
     <nav>
-      <a href="index.html">Events</a>
-      <a href="user.html">User</a>
-      <a href="admin.html">Admin</a>
-      <a href="checkin.html">Check-in</a>
-      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
+  <a href="index.html">Events</a>
+  <a href="checkin.html">Check-in</a>
     </nav>
   </header>
 
   <main>
+    <div class="OpeningAnimation">
+      <div class="LogoPanel">
+<h1 class="OpeningText">EVENT BUZZ</h1>
+<img class="logoClass" src="img/WebLogo.png" alt="">
+</div>
+    </div>
+
     <section class="card" style="padding:16px; margin-bottom:12px; background: #ffffffdd;">
       <div class="card-body">
         <h2 style="margin-top:0;">Discover and Book Your Next Event</h2>
@@ -39,7 +43,9 @@
   </main>
 
   <script src="app.js"></script>
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 
 </html>
