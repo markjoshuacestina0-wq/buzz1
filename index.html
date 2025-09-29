@@ -12,17 +12,17 @@
   <header>
     <h1>🎟 EventBuzz</h1>
     <nav>
-  <a href="index.html">Events</a>
-  <a href="checkin.html">Check-in</a>
+      <a href="index.html">Events</a>
+      <a href="checkin.html">Check-in</a>
     </nav>
   </header>
 
   <main>
     <div class="OpeningAnimation">
       <div class="LogoPanel">
-<h1 class="OpeningText">EVENT BUZZ</h1>
-<img class="logoClass" src="img/WebLogo.png" alt="">
-</div>
+        <h1 class="OpeningText">EVENT BUZZ</h1>
+        <img class="logoClass" src="img/WebLogo.png" alt="">
+      </div>
     </div>
 
     <section class="card" style="padding:16px; margin-bottom:12px; background: #ffffffdd;">
@@ -37,11 +37,25 @@
       <button class="btn" onclick="sortEvents()">Sort by Date</button>
     </div>
     <div id="event-list"></div>
+    <div id="ticket-container" style="display:none;" class="card">
+      <h2>Your Ticket</h2>
+      <div id="ticket-details"></div>
+      <div id="qr-container"></div>
+    </div>
+    <div id="ticket-modal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Your Ticket</h2>
+        <div id="ticket-details"></div>
+        <div id="qr-container"></div>
+      </div>
+    </div>
     <footer class="muted" style="margin-top:28px;">
       <p>© <span id="year"></span> EventBuzz · A client-side prototype. Payments are simulated.</p>
     </footer>
   </main>
 
+  <!-- Add QR Code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();

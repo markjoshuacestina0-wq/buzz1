@@ -3,34 +3,77 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>EventBuzz - Ticket</title>
+  <title>EventBuzz - Your Ticket</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 
 <body>
   <header>
-    <h1>Your Ticket</h1>
-    <nav>
-      <a href="user.html">User</a>
-      <a href="checkin.html">Check-in</a>
-      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
-    </nav>
+    <h1>🎟 EventBuzz</h1>
   </header>
+
   <main>
-    <div id="ticket" style="margin-bottom:12px;"></div>
-    <div class="card" style="padding:16px; display:flex; align-items:center; gap:16px; width:max-content;">
+    <section class="card"
+      style="padding:16px; margin-bottom:12px; background: #ffffffdd; display:flex; align-items:center; gap:16px; width:max-content;">
+      <div id="ticket" style="margin-bottom:12px;"></div>
       <canvas id="qrcode" width="200" height="200"></canvas>
       <div class="muted">Scan this QR at the venue. Payment is simulated.</div>
-    </div>
+    </section>
     <div style="margin-top:12px; display:flex; gap:8px;">
       <button class="btn" onclick="window.print()">Print Ticket</button>
       <button class="btn light" id="email-receipt">Email Receipt</button>
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
   <script src="app.js"></script>
+  <script>
+    // SIMPLE QR CODE THAT ACTUALLY WORKS
+    document.addEventListener('DOMContentLoaded', function () {
+      // Get your ticket data
+      const lastId = localStorage.getItem("lastTicketId");
+      const tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
+      const ticket = tickets.find(t => t.id === lastId) || tickets[tickets.length - 1];
+
+      if (ticket) {
+        const events = JSON.parse(localStorage.getItem("events") || "[]");
+        const event = events.find(e => e.id === ticket.eventId);
+
+        if (event) {
+          const seatCodes = ticket.seats.map(seatId => {
+            const [r, c] = seatId.split("-").map(Number);
+            return String.fromCharCode(65 + r) + (c + 1);
+          }).join(", ");
+
+          // Create simple text for QR code
+          const qrText = `EventBuzz Ticket
+Event: ${event.title}
+Date: ${new Date(event.date).toLocaleDateString()}
+Venue: ${event.venue}
+Seats: ${seatCodes}
+Buyer: ${ticket.buyer.name}
+Ticket ID: ${ticket.id}`;
+
+          // Generate QR code
+          setTimeout(() => {
+            try {
+              new QRious({
+                element: document.getElementById("qrcode"),
+                value: qrText,
+                size: 200,
+                background: 'white',
+                foreground: 'black'
+              });
+              console.log("QR code created!");
+            } catch (e) {
+              console.log("Error:", e);
+            }
+          }, 500);
+        }
+      }
+    });
+  </script>
 </body>
 
 </html>

@@ -1,5 +1,5 @@
 // Show OpeningAnimation for 3 seconds after page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const popup = document.querySelector('.OpeningAnimation');
   if (popup) {
     popup.style.display = 'block';
@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2400);
   }
 });
+
 // Minimal client-side data layer
 const STORAGE_KEYS = {
   events: "events",
@@ -19,6 +20,7 @@ const STORAGE_KEYS = {
   users: "users",
   currentUser: "currentUser"
 };
+
 function loadEvents() {
   let events = JSON.parse(localStorage.getItem(STORAGE_KEYS.events)) || [];
   if (events.length === 0) {
@@ -37,30 +39,24 @@ function loadEvents() {
   }
   return events;
 }
-
 function saveEvents(events) {
   localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(events));
 }
-
 function loadTickets() {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.tickets)) || [];
 }
-
 function saveTickets(tickets) {
   localStorage.setItem(STORAGE_KEYS.tickets, JSON.stringify(tickets));
 }
-
 function generateId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
-
 function formatDate(dt) {
   try {
     const d = new Date(dt);
     return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   } catch { return dt; }
 }
-
 function seatIdToCode(seatId) {
   const [r, c] = seatId.split("-").map(Number);
   const rowCode = String.fromCharCode(65 + r); // A, B, C ...
@@ -120,7 +116,7 @@ if (document.getElementById("event-list")) {
   refresh();
 }
 
-// AUTH: users and session (very basic, localStorage only)
+// AUTH: users and session
 function loadUsers() {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.users)) || [];
 }
@@ -135,7 +131,7 @@ function setCurrentUser(user) {
   else localStorage.removeItem(STORAGE_KEYS.currentUser);
 }
 
-// Bind auth.html forms if present
+// Bind auth.html forms
 if (document.getElementById("admin-login")) {
   const users = loadUsers();
   // Register Admin
@@ -160,7 +156,6 @@ if (document.getElementById("admin-login")) {
     window.location.href = "admin.html";
   });
 }
-
 if (document.getElementById("user-login")) {
   // Register User
   document.getElementById("user-register").addEventListener("submit", (e) => {
@@ -214,6 +209,7 @@ if (location.pathname.endsWith("/admin.html") || location.pathname.endsWith("adm
     window.location.href = "auth.html";
   }
 }
+
 // ADMIN: create, list, edit, delete
 if (document.getElementById("create-event-form")) {
   const form = document.getElementById("create-event-form");
@@ -300,7 +296,7 @@ if (document.getElementById("create-event-form")) {
   renderAdminList();
 }
 
-// EVENT: details + seat selection + checkout (simulated)
+// EVENT: details + seat selection + checkout
 if (document.getElementById("seat-map")) {
   const params = new URLSearchParams(window.location.search);
   const eventId = params.get("id");
@@ -373,7 +369,7 @@ if (document.getElementById("seat-map")) {
     tickets.push(ticket);
     saveTickets(tickets);
 
-    // Also set last generated ticket for ticket.html view
+    // Save last generated ticket ID for ticket.html view
     localStorage.setItem("lastTicketId", ticket.id);
     alert("Payment simulated. Ticket generated!");
     window.location.href = "ticket.html";
@@ -401,14 +397,142 @@ if (document.getElementById("ticket")) {
         </div>
       </div>
     `;
-    if (typeof QRious !== "undefined") {
-      new QRious({
-        element: document.getElementById("qrcode"),
-        value: ticket.id.toString(),
-        size: 200,
-      });
-    }
-    // Email receipt button (mailto draft)
+    // Wait for QRious library to load if not available yet
+    const generateQRCode = () => {
+      if (typeof QRious !== "undefined") {
+        const ticketData = {
+          ticketId: ticket.id,
+          buyerName: ticket.buyer.name,
+          buyerEmail: ticket.buyer.email,
+          eventName: event.title,
+          dateTime: formatDate(event.date),
+          venue: event.venue,
+          seats: ticket.seats.map(seatIdToCode).join(", ")
+        };
+        console.log("Generating QR code for ticket:", ticketData);
+        // Create a data URL that opens a ticket details page directly
+        const ticketHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>EventBuzz - Ticket Details</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .ticket { 
+              background: white; 
+              padding: 30px; 
+              border-radius: 15px; 
+              box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+              max-width: 400px;
+              width: 100%;
+            }
+            .header { 
+              text-align: center; 
+              color: #6b46c1; 
+              margin-bottom: 25px; 
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 15px;
+            }
+            .detail { 
+              margin: 15px 0; 
+              padding: 10px 0; 
+              border-bottom: 1px solid #f3f4f6; 
+              display: flex;
+              justify-content: space-between;
+            }
+            .label { 
+              font-weight: bold; 
+              color: #374151; 
+              flex: 1;
+            }
+            .value { 
+              color: #6b7280; 
+              text-align: right;
+              flex: 1;
+            }
+            .ticket-id {
+              background: #f3f4f6;
+              padding: 10px;
+              border-radius: 8px;
+              text-align: center;
+              margin-top: 20px;
+              font-family: monospace;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            <div class="header">
+              <h1>🎟️ EventBuzz</h1>
+              <h2>${ticketData.eventName}</h2>
+            </div>
+            <div class="detail">
+              <span class="label">Date & Time:</span>
+              <span class="value">${ticketData.dateTime}</span>
+            </div>
+            <div class="detail">
+              <span class="label">Venue:</span>
+              <span class="value">${ticketData.venue}</span>
+            </div>
+            <div class="detail">
+              <span class="label">Seats:</span>
+              <span class="value">${ticketData.seats}</span>
+            </div>
+            <div class="detail">
+              <span class="label">Buyer:</span>
+              <span class="value">${ticketData.buyerName}</span>
+            </div>
+            <div class="detail">
+              <span class="label">Email:</span>
+              <span class="value">${ticketData.buyerEmail}</span>
+            </div>
+            <div class="ticket-id">
+              <strong>Ticket ID:</strong> ${ticketData.ticketId}
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+        // Create a data URL that will open the ticket details directly
+        const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(ticketHtml)}`;
+        console.log("QR code data URL created:", dataUrl.substring(0, 100) + "...");
+
+        const qrElement = document.getElementById("qrcode");
+        if (qrElement) {
+          new QRious({
+            element: qrElement,
+            value: dataUrl,
+            size: 300,
+            background: 'white',
+            foreground: 'black',
+            level: 'L',
+            margin: 4
+          });
+          console.log("QR code generated successfully");
+        } else {
+          console.error("QR code element not found!");
+        }
+      } else {
+        console.log("QRious library not loaded yet, retrying in 100ms...");
+        setTimeout(generateQRCode, 100);
+      }
+    };
+
+    generateQRCode();
+    // Email receipt button
     const emailBtn = document.getElementById("email-receipt");
     if (emailBtn) {
       const subject = encodeURIComponent(`Your EventBuzz Ticket: ${event.title}`);
@@ -430,7 +554,7 @@ if (document.getElementById("ticket")) {
   }
 }
 
-// CHECK-IN: validate by ID and mark as checked in
+// CHECK-IN: validate by ID
 window.checkIn = function checkIn() {
   const id = (document.getElementById("ticket-id")?.value || "").trim();
   if (!id) return;
@@ -454,7 +578,7 @@ window.checkIn = function checkIn() {
   resultEl.className = "success";
 };
 
-// CHECK-IN: optional QR image decoding (if qr-scanner is loaded)
+// CHECK-IN: QR file decode
 if (document.getElementById("qr-file")) {
   const fileInput = document.getElementById("qr-file");
   fileInput.addEventListener("change", async () => {
@@ -463,6 +587,64 @@ if (document.getElementById("qr-file")) {
     try {
       if (window.QrScanner) {
         const result = await window.QrScanner.scanImage(file);
+
+        // Check if the QR code contains a data URL with ticket HTML
+        if (result.startsWith('data:text/html;charset=utf-8,')) {
+          try {
+            // Extract the HTML content from the data URL
+            const htmlContent = decodeURIComponent(result.replace('data:text/html;charset=utf-8,', ''));
+
+            // Parse the HTML to extract ticket data
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+
+            // Extract ticket details from the HTML
+            const ticketData = {
+              eventName: doc.querySelector('h2')?.textContent || 'Unknown Event',
+              dateTime: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Date & Time'))?.querySelector('.value')?.textContent || 'Unknown Date',
+              venue: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Venue'))?.querySelector('.value')?.textContent || 'Unknown Venue',
+              seats: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Seats'))?.querySelector('.value')?.textContent || 'Unknown Seats',
+              buyerName: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Buyer'))?.querySelector('.value')?.textContent || 'Unknown Buyer',
+              buyerEmail: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Email'))?.querySelector('.value')?.textContent || 'Unknown Email',
+              ticketId: doc.querySelector('.ticket-id')?.textContent?.replace('Ticket ID:', '').trim() || 'Unknown ID'
+            };
+
+            // Display ticket details
+            displayTicketDetails(ticketData);
+            // Also set the ticket ID for validation
+            document.getElementById("ticket-id").value = ticketData.ticketId;
+            return;
+          } catch (error) {
+            console.error('Error parsing ticket data from QR:', error);
+          }
+        }
+
+        // Check if the QR code contains a URL with ticket data (legacy support)
+        if (result.includes('ticket.html?data=')) {
+          const url = new URL(result);
+          const dataParam = url.searchParams.get('data');
+          if (dataParam) {
+            try {
+              const ticketData = JSON.parse(decodeURIComponent(dataParam));
+              // Display ticket details
+              displayTicketDetails(ticketData);
+              // Also set the ticket ID for validation
+              document.getElementById("ticket-id").value = ticketData.ticketId;
+              return;
+            } catch (error) {
+              console.error('Error parsing ticket data from QR:', error);
+            }
+          }
+        }
+
+        // Check if it's just a ticket ID (starts with tkt_)
+        if (result.startsWith('tkt_')) {
+          document.getElementById("ticket-id").value = result;
+          checkIn();
+          return;
+        }
+
+        // Fallback: treat as ticket ID
         document.getElementById("ticket-id").value = result;
         checkIn();
       } else {
@@ -474,4 +656,26 @@ if (document.getElementById("qr-file")) {
       fileInput.value = "";
     }
   });
+}
+
+// Function to display ticket details from QR code
+function displayTicketDetails(ticketData) {
+  const resultEl = document.getElementById("checkin-result");
+  resultEl.innerHTML = `
+    <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 16px; margin: 12px 0;">
+      <h3 style="margin: 0 0 12px 0; color: #0369a1;">📋 Ticket Details</h3>
+      <div style="display: grid; gap: 8px; font-size: 14px;">
+        <div><strong>Event:</strong> ${ticketData.eventName}</div>
+        <div><strong>Date & Time:</strong> ${ticketData.dateTime}</div>
+        <div><strong>Venue:</strong> ${ticketData.venue}</div>
+        <div><strong>Seats:</strong> ${ticketData.seats}</div>
+        <div><strong>Buyer:</strong> ${ticketData.buyerName} (${ticketData.buyerEmail})</div>
+        <div><strong>Ticket ID:</strong> ${ticketData.ticketId}</div>
+      </div>
+      <div style="margin-top: 12px;">
+        <button class="btn" onclick="checkIn()">Validate & Check-in</button>
+      </div>
+    </div>
+  `;
+  resultEl.className = "success";
 }
