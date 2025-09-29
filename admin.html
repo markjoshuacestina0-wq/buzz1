@@ -10,12 +10,18 @@
 
 <body>
   <header>
-    <h1>Admin · EventBuzz</h1>
-    <nav>
-      <a href="user.html">User</a>
-      <a href="checkin.html">Check-in</a>
-      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
-    </nav>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <h1>Admin · EventBuzz</h1>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <nav style="display: flex; align-items: center; gap: 14px;">
+          <a href="index.html">Events</a>
+          <a href="checkin.html">Check-in</a>
+        </nav>
+        <span id="user-info" style="margin-left: 12px;">
+          <span class="muted user-name"></span>
+        </span>
+      </div>
+    </div>
   </header>
 
   <main>
@@ -43,7 +49,19 @@
     </form>
 
     <h2 style="margin-top:20px;">Existing Events</h2>
-    <div id="admin-event-list" class="grid"></div>
+    <div id="admin-event-list" class="grid">
+      <!-- Events will be populated here with Edit/Delete buttons -->
+    </div>
+    <div id="delete-confirmation" style="display:none" class="modal">
+      <div class="modal-content">
+        <h3>Delete Event?</h3>
+        <p>Are you sure you want to delete this event? This action cannot be undone.</p>
+        <div style="display:flex; gap:8px; justify-content:center; margin-top:16px;">
+          <button id="confirm-delete" class="btn danger">Delete</button>
+          <button id="cancel-delete" class="btn light">Cancel</button>
+        </div>
+      </div>
+    </div>
     <footer class="muted" style="margin-top:28px;">
       <p>© <span id="year-admin"></span> EventBuzz</p>
     </footer>

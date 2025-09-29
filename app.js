@@ -186,19 +186,41 @@ function renderAccountNav() {
   const user = getCurrentUser();
   const nav = document.querySelector("header nav");
   if (!nav) return;
+  
+  // Remove existing login/register link if it exists
+  const loginLink = nav.querySelector('a[href="auth.html"]');
+  if (loginLink) loginLink.remove();
+  
+  // Remove existing account info if it exists
   const existing = nav.querySelector(".account");
   if (existing) existing.remove();
-  const span = document.createElement("span");
-  span.className = "account";
-  span.style.marginLeft = "12px";
+  
   if (user) {
-    span.innerHTML = `<span class="muted">${user.name} (${user.role})</span> <button class="btn light" id="logout-btn">Logout</button>`;
+    // Add user info and logout button
+    const span = document.createElement("span");
+    span.className = "account";
+    span.style.marginLeft = "12px";
+    span.innerHTML = `
+      <span class="muted">${user.name} (${user.role})</span>
+      <button class="btn light" id="logout-btn">Logout</button>
+    `;
+    nav.appendChild(span);
+    
+    const logout = document.getElementById("logout-btn");
+    if (logout) {
+      logout.addEventListener("click", () => {
+        setCurrentUser(null);
+        window.location.href = "index.html";
+      });
+    }
   } else {
-    span.innerHTML = `<a href="auth.html" class="btn light">Login / Register</a>`;
+    // Add login/register link only if not logged in
+    const loginLink = document.createElement("a");
+    loginLink.href = "auth.html";
+    loginLink.className = "btn light";
+    loginLink.textContent = "Login / Register";
+    nav.appendChild(loginLink);
   }
-  nav.appendChild(span);
-  const logout = document.getElementById("logout-btn");
-  if (logout) logout.addEventListener("click", () => { setCurrentUser(null); window.location.href = "index.html"; });
 }
 renderAccountNav();
 
@@ -241,10 +263,15 @@ if (document.getElementById("create-event-form")) {
 
     listEl.querySelectorAll(".delete").forEach(btn => btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
-      if (!confirm("Delete this event?")) return;
-      const events = loadEvents().filter(e => e.id !== id);
-      saveEvents(events);
-      renderAdminList();
+      const eventToDelete = loadEvents().find(e => e.id === id);
+      if (!eventToDelete) return;
+      
+      if (confirm(`Are you sure you want to delete "${eventToDelete.title}"?`)) {
+        const events = loadEvents().filter(e => e.id !== id);
+        saveEvents(events);
+        renderAdminList();
+        alert("Event deleted successfully");
+      }
     }));
 
     listEl.querySelectorAll(".edit").forEach(btn => btn.addEventListener("click", () => {
