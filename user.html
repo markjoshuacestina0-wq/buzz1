@@ -2,77 +2,145 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>EventBuzz - User</title>
-    <link rel="stylesheet" href="styles.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>EventBuzz - My Tickets</title>
+  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script defer src="supabase.js"></script>
+  <style>
+    #loading-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); color: #fff; font-size: 18px; }
+  </style>
 </head>
 
 <body>
-    <header>
-        <h1>User · EventBuzz</h1>
-        <nav>
-            <a href="index.html">Events</a>
-            <a href="checkin.html">Check-in</a>
-        </nav>
-    </header>
-    <main>
-        <section class="card" style="padding:16px; margin-bottom:12px; background:#ffffffdd;">
-            <div class="card-body">
-                <h2 style="margin-top:0;">Welcome</h2>
-                <p class="muted">Manage your tickets and view recent purchases.</p>
-            </div>
-        </section>
-        <h2>My Latest Ticket</h2>
-        <div id="user-latest" class="grid"></div>
+  <div id="loading-overlay">Loading...</div>
+  <header>
+    <h1>My Tickets · EventBuzz</h1>
+    <nav>
+      <a href="index.html">Events</a>
+      <a href="admin.html">Admin</a>
+      <a href="checkin.html">Check-in</a>
+    </nav>
+  </header>
 
-        <h2 style="margin-top:20px;">All Tickets (this device)</h2>
-        <div id="user-tickets" class="grid"></div>
-    </main>
+  <main>
+    <section class="card" style="padding:16px; margin-bottom:12px; background:#ffffffdd;">
+      <div class="card-body">
+        <h2 style="margin-top:0;">Find Your Tickets</h2>
+        <p class="muted">Enter the buyer email used during purchase to view your tickets.</p>
+        <form id="finder" style="display:grid; gap:10px; grid-template-columns: 1fr auto;">
+          <input type="email" id="buyer-email" placeholder="your@email.com" required>
+          <button class="btn" type="submit">Load My Tickets</button>
+        </form>
+      </div>
+    </section>
 
-    <script src="app.js"></script>
-    <script>
-        (function () {
-            const wrap = (html) => `<div class=\"card\"><div class=\"card-body\">${html}</div></div>`;
-            const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-            const events = JSON.parse(localStorage.getItem('events') || '[]');
-            const byId = (id) => events.find(e => e.id === id);
-            const latest = tickets[tickets.length - 1];
-            const latestEl = document.getElementById('user-latest');
-            const allEl = document.getElementById('user-tickets');
-            if (!latest) {
-                latestEl.innerHTML = wrap('<p>No tickets yet.</p>');
-            } else {
-                const e = byId(latest.eventId);
-                latestEl.innerHTML = wrap(
-                    `<h3>${e.title}</h3>
-           <p class=muted>${new Date(e.date).toLocaleString()} · ${e.venue}</p>
-           <p><strong>Seats:</strong> ${latest.seats.map(s => {
-                        const [r, c] = s.split('-').map(Number);
-                        return String.fromCharCode(65 + r) + (c + 1);
-                    }).join(', ')}</p>
-           <div style=\"display:flex;gap:8px;\">
-             <a class=\"btn\" href=\"ticket.html\">View Ticket</a>
-           </div>`
-                );
-            }
-            allEl.innerHTML = '';
-            tickets.slice().reverse().forEach(t => {
-                const e = byId(t.eventId);
-                const checked = t.checkedIn ? '✔ Checked-in' : 'Not checked-in';
-                allEl.innerHTML += wrap(
-                    `<strong>${e.title}</strong>
-           <div class=muted>${new Date(e.date).toLocaleString()} · ${e.venue}</div>
-           <div>Seats: ${t.seats.map(s => { const [r, c] = s.split('-').map(Number); return String.fromCharCode(65 + r) + (c + 1); }).join(', ')}</div>
-           <div class=muted>Ticket ID: ${t.id} · ${checked}</div>`
-                );
-            });
-        })();
-    </script>
-    <footer class="muted" style="max-width:1000px; margin: 20px auto; padding: 0 16px;">
-        <p>© <span id="year-user"></span> EventBuzz</p>
-    </footer>
-    <script>document.getElementById('year-user').textContent = new Date().getFullYear();</script>
+    <h2>My Latest Ticket</h2>
+    <div id="user-latest" class="grid"></div>
+
+    <h2 style="margin-top:20px;">All My Tickets</h2>
+    <div id="user-tickets" class="grid"></div>
+  </main>
+
+  <footer class="muted" style="max-width:1000px; margin: 20px auto; padding: 0 16px;">
+    <p>© <span id="year-user"></span> EventBuzz</p>
+  </footer>
+  <script>
+    document.getElementById('year-user').textContent = new Date().getFullYear();
+
+    // Minimal loading overlay helpers
+    function showLoading(msg) {
+      const ov = document.getElementById('loading-overlay');
+      ov.textContent = msg || 'Loading...';
+      ov.style.display = 'flex';
+    }
+    function hideLoading() {
+      const ov = document.getElementById('loading-overlay');
+      ov.style.display = 'none';
+    }
+
+    // Render helpers
+    function wrapCard(html) { return `<div class="card"><div class="card-body">${html}</div></div>`; }
+    function seatIdToCode(seatId) { const [r,c] = String(seatId).split('-').map(Number); return String.fromCharCode(65 + (r||0)) + ((c||0) + 1); }
+    function formatDate(dt) { try { const d = new Date(dt); return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch { return dt; } }
+
+    async function fetchTicketsByEmail(client, email) {
+      // Filter JSONB field buyer.email using PostgREST operator
+      const { data, error } = await client
+        .from('tickets')
+        .select('*')
+        .filter('buyer->>email', 'eq', email)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function fetchEventsByIds(client, ids) {
+      if (!ids || ids.length === 0) return [];
+      const { data, error } = await client
+        .from('events')
+        .select('*')
+        .in('id', ids);
+      if (error) throw error;
+      return data || [];
+    }
+
+    function renderTickets(tickets, eventsById) {
+      const latestEl = document.getElementById('user-latest');
+      const allEl = document.getElementById('user-tickets');
+      latestEl.innerHTML = '';
+      allEl.innerHTML = '';
+
+      if (!tickets || tickets.length === 0) {
+        latestEl.innerHTML = wrapCard('<p>No tickets found for this email.</p>');
+        return;
+      }
+
+      const latest = tickets[0];
+      const eLatest = eventsById.get(latest.eventid);
+      latestEl.innerHTML = wrapCard(`
+        <h3>${eLatest ? eLatest.title : 'Unknown Event'}</h3>
+        <p class="muted">${formatDate(eLatest ? eLatest.date : latest.created_at)} · ${(eLatest && eLatest.venue) || ''}</p>
+        <p><strong>Seats:</strong> ${latest.seats.map(seatIdToCode).join(', ')}</p>
+        <p class="muted">Ticket ID: ${latest.id}</p>
+      `);
+
+      tickets.forEach(t => {
+        const ev = eventsById.get(t.eventid);
+        allEl.innerHTML += wrapCard(`
+          <strong>${ev ? ev.title : 'Unknown Event'}</strong>
+          <div class="muted">${formatDate(ev ? ev.date : t.created_at)} · ${(ev && ev.venue) || ''}</div>
+          <div>Seats: ${t.seats.map(seatIdToCode).join(', ')}</div>
+          <div class="muted">Ticket ID: ${t.id} ${t.checkedin ? '· ✔ Checked-in' : ''}</div>
+        `);
+      });
+    }
+
+    document.getElementById('finder').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('buyer-email').value.trim();
+      if (!email) return;
+      try {
+        showLoading('Loading your tickets...');
+        await window.supabaseReady;
+        const client = window.supabaseClient;
+        const tickets = await fetchTicketsByEmail(client, email);
+        const eventIds = Array.from(new Set(tickets.map(t => t.eventid)));
+        const events = await fetchEventsByIds(client, eventIds);
+        const eventsById = new Map(events.map(e => [e.id, e]));
+        renderTickets(tickets, eventsById);
+      } catch (err) {
+        console.error(err);
+        const latestEl = document.getElementById('user-latest');
+        const allEl = document.getElementById('user-tickets');
+        latestEl.innerHTML = '';
+        allEl.innerHTML = '';
+        latestEl.innerHTML = wrapCard('<p class="error">Failed to load tickets. Check console.</p>');
+      } finally {
+        hideLoading();
+      }
+    });
+  </script>
 </body>
 
 </html>

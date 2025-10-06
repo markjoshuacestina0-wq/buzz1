@@ -6,9 +6,15 @@
   <title>EventBuzz - Events</title>
   <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script defer src="supabase.js"></script>
+  <style>
+    #loading-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 18px; }
+    #user-banner { box-sizing: border-box; }
+  </style>
 </head>
 
 <body>
+  <div id="loading-overlay">Loading...</div>
   <header>
     <h1>🎟 EventBuzz</h1>
     <nav>
@@ -18,13 +24,6 @@
   </header>
 
   <main>
-    <div class="OpeningAnimation">
-      <div class="LogoPanel">
-        <h1 class="OpeningText">EVENT BUZZ</h1>
-        <img class="logoClass" src="img/WebLogo.png" alt="">
-      </div>
-    </div>
-
     <section class="card" style="padding:16px; margin-bottom:12px; background: #ffffffdd;">
       <div class="card-body">
         <h2 style="margin-top:0;">Discover and Book Your Next Event</h2>
@@ -37,24 +36,16 @@
       <button class="btn" onclick="sortEvents()">Sort by Date</button>
     </div>
     <div id="event-list"></div>
-    <div id="ticket-container" style="display:none;" class="card">
-      <h2>Your Ticket</h2>
-      <div id="ticket-details"></div>
-      <div id="qr-container"></div>
-    </div>
-    <div id="ticket-modal" class="modal" style="display:none;">
-      <div class="modal-content">
-        <h2>Your Ticket</h2>
-        <div id="ticket-details"></div>
-        <div id="qr-container"></div>
-      </div>
-    </div>
+
+    <!-- If a ticket preview/modal is needed here, ensure unique IDs to avoid duplication across pages. Removed duplicate IDs. -->
+
     <footer class="muted" style="margin-top:28px;">
       <p>© <span id="year"></span> EventBuzz · A client-side prototype. Payments are simulated.</p>
     </footer>
   </main>
 
-  <script src="app.js"></script>
+  <!-- Removed qrcodejs here since ticket QR is handled on ticket.html via QRious -->
+  <script defer src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>

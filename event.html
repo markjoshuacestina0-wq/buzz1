@@ -6,9 +6,15 @@
   <title>EventBuzz - Event</title>
   <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script defer src="supabase.js"></script>
+  <style>
+    #loading-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); color: #fff; font-size: 18px; }
+    #user-banner { box-sizing: border-box; }
+  </style>
 </head>
 
 <body>
+  <div id="loading-overlay">Loading...</div>
   <header>
     <a href="index.html">⬅ Back</a>
     <h1 id="event-title"></h1>
@@ -18,6 +24,7 @@
     <p id="event-description"></p>
     <p class="muted"><strong>Date:</strong> <span id="event-date"></span></p>
     <p><strong>Venue:</strong> <span id="event-venue"></span></p>
+
     <h3>Select Seats</h3>
     <div id="seat-map"></div>
     <p id="summary">0 seats selected | Total: $0</p>
@@ -30,7 +37,7 @@
     </form>
   </main>
 
-  <script src="app.js"></script>
+  <script defer src="app.js"></script>
 </body>
 
 </html>

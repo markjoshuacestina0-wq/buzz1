@@ -1,708 +1,463 @@
-// Show OpeningAnimation for 3 seconds after page load
-document.addEventListener('DOMContentLoaded', function () {
-  const popup = document.querySelector('.OpeningAnimation');
-  if (popup) {
-    popup.style.display = 'block';
-    setTimeout(() => {
-      popup.classList.add('slide-up');
-      setTimeout(() => {
-        popup.style.display = 'none';
-        popup.classList.remove('slide-up');
-      }, 600);
-    }, 2400);
-  }
-});
+// Supabase-only app.js
+// Enforces Supabase auth, uses server for events/tickets/profiles and tidies client behavior.
 
-// Minimal client-side data layer
-const STORAGE_KEYS = {
-  events: "events",
-  tickets: "tickets",
-  users: "users",
-  currentUser: "currentUser"
-};
+;(async function () {
+  // Helpers
+  function generateId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
+  function formatDate(dt) { try { const d = new Date(dt); return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch { return dt; } }
+  function seatIdToCode(seatId) { const [r, c] = String(seatId).split('-').map(Number); const row = isNaN(r) ? 0 : r; const col = isNaN(c) ? 0 : c; return String.fromCharCode(65 + row) + (col + 1); }
 
-function loadEvents() {
-  let events = JSON.parse(localStorage.getItem(STORAGE_KEYS.events)) || [];
-  if (events.length === 0) {
-    events = [{
-      id: generateId("evt"),
-      title: "University Concert",
-      description: "Live music night at the campus!",
-      date: "2025-09-30T19:30",
-      venue: "Main Auditorium",
-      rows: 6,
-      cols: 10,
-      price: 49,
-      seats: {}
-    }];
-    localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(events));
-  }
-  return events;
-}
-function saveEvents(events) {
-  localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(events));
-}
-function loadTickets() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.tickets)) || [];
-}
-function saveTickets(tickets) {
-  localStorage.setItem(STORAGE_KEYS.tickets, JSON.stringify(tickets));
-}
-function generateId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-function formatDate(dt) {
-  try {
-    const d = new Date(dt);
-    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch { return dt; }
-}
-function seatIdToCode(seatId) {
-  const [r, c] = seatId.split("-").map(Number);
-  const rowCode = String.fromCharCode(65 + r); // A, B, C ...
-  return `${rowCode}${c + 1}`;
-}
-
-// INDEX: list, search, sort
-if (document.getElementById("event-list")) {
-  const listEl = document.getElementById("event-list");
-  const searchEl = document.getElementById("search");
-  let sortAsc = true;
-
-  function renderList(items) {
-    listEl.innerHTML = "";
-    if (items.length === 0) {
-      listEl.innerHTML = '<p>No events found.</p>';
-      return;
+  // UI helpers: loading overlay and toast notifications
+  function ensureLoadingOverlay() {
+    let ov = document.getElementById('loading-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'loading-overlay';
+      ov.style.display = 'none';
+      ov.innerHTML = '<div class="loader">Loading...</div>';
+      document.body.insertBefore(ov, document.body.firstChild);
     }
-    items.forEach(e => {
-      const card = document.createElement("a");
-      card.className = "card event-card";
-      card.href = `event.html?id=${e.id}`;
-      card.innerHTML = `
-        <div class="card-body">
-          <div class="card-header">
-            <h3 class="card-title">${e.title}</h3>
-            <span class="price">₱${e.price}</span>
-          </div>
-          <p class="muted">${formatDate(e.date)} · ${e.venue}</p>
-          <p class="desc">${e.description}</p>
-        </div>
-      `;
-      listEl.appendChild(card);
-    });
+    return ov;
+  }
+  function showLoading(msg = 'Loading...') {
+    const ov = ensureLoadingOverlay();
+    let loader = ov.querySelector('.loader');
+    if (!loader) {
+      // normalize overlay content so we always have a .loader element
+      loader = document.createElement('div');
+      loader.className = 'loader';
+      loader.textContent = 'Loading...';
+      ov.innerHTML = '';
+      ov.appendChild(loader);
+    }
+    loader.textContent = msg;
+    ov.style.display = 'flex';
+  }
+  function hideLoading() { const ov = document.getElementById('loading-overlay'); if (ov) ov.style.display = 'none'; }
+
+  function ensureToastContainer() {
+    let c = document.getElementById('toast-container');
+    if (!c) { c = document.createElement('div'); c.id = 'toast-container'; document.body.appendChild(c); }
+    return c;
+  }
+  function showToast(type, message, timeout = 4000) {
+    const container = ensureToastContainer();
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type || 'info');
+    t.textContent = message;
+    container.appendChild(t);
+    setTimeout(() => { t.classList.add('hide'); }, timeout - 300);
+    setTimeout(() => { t.remove(); }, timeout);
+  }
+  // expose helpers globally for other scripts/pages
+  window.showToast = showToast;
+  window.showLoading = showLoading;
+  window.hideLoading = hideLoading;
+
+  // Require supabase client
+  if (!window.supabaseReady) {
+    console.error('Supabase is not initialized. Make sure supabase.js is included before app.js');
+    // Show a visible error on the page
+    document.body.insertAdjacentHTML('afterbegin', '<div style="background:#fee2e2;color:#7f1d1d;padding:12px;text-align:center;">Configuration error: Supabase not loaded. See console.</div>');
+    return;
   }
 
-  function getFilteredSorted() {
-    const q = (searchEl?.value || "").trim().toLowerCase();
-    const events = loadEvents();
-    let filtered = events.filter(e =>
-      e.title.toLowerCase().includes(q) ||
-      e.description.toLowerCase().includes(q) ||
-      e.venue.toLowerCase().includes(q)
-    );
-    filtered.sort((a, b) => (new Date(a.date) - new Date(b.date)) * (sortAsc ? 1 : -1));
-    return filtered;
+  let supabaseClient;
+  try {
+    supabaseClient = await window.supabaseReady;
+  } catch (err) {
+    console.error('supabaseReady rejected', err);
+    document.body.insertAdjacentHTML('afterbegin', '<div style="background:#fee2e2;color:#7f1d1d;padding:12px;text-align:center;">Supabase initialization failed. Check console.</div>');
+    return;
   }
 
-  function refresh() { renderList(getFilteredSorted()); }
-
-  window.sortEvents = function sortEvents() {
-    sortAsc = !sortAsc;
-    refresh();
-  };
-
-  searchEl?.addEventListener("input", refresh);
-  refresh();
-}
-
-// AUTH: users and session
-function loadUsers() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.users)) || [];
-}
-function saveUsers(users) {
-  localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-}
-function getCurrentUser() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.currentUser));
-}
-function setCurrentUser(user) {
-  if (user) localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(user));
-  else localStorage.removeItem(STORAGE_KEYS.currentUser);
-}
-
-// Bind auth.html forms
-if (document.getElementById("admin-login")) {
-  const users = loadUsers();
-  // Register Admin
-  document.getElementById("admin-register").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = document.getElementById("admin-reg-name").value.trim();
-    const email = document.getElementById("admin-reg-email").value.trim().toLowerCase();
-    const pass = document.getElementById("admin-reg-pass").value;
-    if (users.find(u => u.email === email)) { alert("Email already exists."); return; }
-    users.push({ id: generateId("usr"), name, email, pass, role: "admin" });
-    saveUsers(users);
-    alert("Admin registered. You can login now.");
-  });
-  // Login Admin
-  document.getElementById("admin-login").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const email = document.getElementById("admin-login-email").value.trim().toLowerCase();
-    const pass = document.getElementById("admin-login-pass").value;
-    const u = loadUsers().find(u => u.email === email && u.pass === pass && u.role === "admin");
-    if (!u) { alert("Invalid credentials."); return; }
-    setCurrentUser({ id: u.id, name: u.name, email: u.email, role: u.role });
-    window.location.href = "admin.html";
-  });
-}
-if (document.getElementById("user-login")) {
-  // Register User
-  document.getElementById("user-register").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const users = loadUsers();
-    const name = document.getElementById("user-reg-name").value.trim();
-    const email = document.getElementById("user-reg-email").value.trim().toLowerCase();
-    const pass = document.getElementById("user-reg-pass").value;
-    if (users.find(u => u.email === email)) { alert("Email already exists."); return; }
-    users.push({ id: generateId("usr"), name, email, pass, role: "user" });
-    saveUsers(users);
-    alert("User registered. You can login now.");
-  });
-  // Login User
-  document.getElementById("user-login").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const email = document.getElementById("user-login-email").value.trim().toLowerCase();
-    const pass = document.getElementById("user-login-pass").value;
-    const u = loadUsers().find(u => u.email === email && u.pass === pass && u.role === "user");
-    if (!u) { alert("Invalid credentials."); return; }
-    setCurrentUser({ id: u.id, name: u.name, email: u.email, role: u.role });
-    window.location.href = "index.html";
-  });
-}
-
-// NAV account area + guards
-function renderAccountNav() {
-  const user = getCurrentUser();
-  const nav = document.querySelector("header nav");
-  if (!nav) return;
   
-  // Remove existing login/register link if it exists
-  const loginLink = nav.querySelector('a[href="auth.html"]');
-  if (loginLink) loginLink.remove();
+  // Page path (auth disabled)
+  const path = window.location.pathname.split('/').pop() || 'index.html';
+
+  // Load minimal data based on page to avoid masking events with other table errors
+  window.DB = window.DB || { events: [], tickets: [], profiles: [], lastTicketId: null, currentProfile: null, ready: false };
+  try {
+    if (path === 'index.html') {
+      showLoading('Loading events...');
+      const { data, error } = await supabaseClient.from('events').select('*').order('date', { ascending: true });
+      if (error) {
+        console.warn('Events load error', error);
+        showToast('error', 'Failed to load events: ' + (error.message || error));
+        window.DB.events = [];
+      } else {
+        window.DB.events = data || [];
+      }
+      hideLoading();
+    } else {
+      // For other pages, rely on their specific mount functions to fetch what they need
+    }
+  } catch (e) {
+    hideLoading();
+    console.warn('Error loading initial data from Supabase', e);
+    showToast('error', 'Failed to load data from server. Check console.');
+  }
+  window.DB.ready = true;
+
   
-  // Remove existing account info if it exists
-  const existing = nav.querySelector(".account");
-  if (existing) existing.remove();
-  
-  if (user) {
-    // Add user info and logout button
-    const span = document.createElement("span");
-    span.className = "account";
-    span.style.marginLeft = "12px";
-    span.innerHTML = `
-      <span class="muted">${user.name} (${user.role})</span>
-      <button class="btn light" id="logout-btn">Logout</button>
-    `;
-    nav.appendChild(span);
-    
-    const logout = document.getElementById("logout-btn");
-    if (logout) {
-      logout.addEventListener("click", () => {
-        setCurrentUser(null);
-        window.location.href = "index.html";
+  // Minimal account banner with Logout (shown only when logged in)
+  async function renderAccountBanner() {
+    if (path === 'auth.html') return;
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      // Remove existing banner first
+      const existing = document.getElementById('account-banner');
+      if (existing) existing.remove();
+      if (!session || !session.user) return;
+      const email = session.user.email || 'Signed in';
+      const banner = document.createElement('div');
+      banner.id = 'account-banner';
+      banner.style.cssText = 'padding:8px;background:#f1f1f1;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;font-size:14px;z-index:9999;';
+      banner.innerHTML = `<div>Logged in as: ${email}</div><div><button id="logout-btn" class="btn light">Logout</button></div>`;
+      document.body.insertBefore(banner, document.body.firstChild);
+      banner.querySelector('#logout-btn').addEventListener('click', async () => {
+        try {
+          showLoading('Signing out...');
+          await supabaseClient.auth.signOut();
+          hideLoading();
+          showToast('success', 'Logged out');
+          // Remove banner and optionally redirect
+          const b = document.getElementById('account-banner');
+          if (b) b.remove();
+          // Stay on the page; user can keep browsing public content
+        } catch (e) {
+          hideLoading();
+          console.error(e);
+          showToast('error', e?.message || 'Logout failed');
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Update banner on auth state changes
+  try { supabaseClient.auth.onAuthStateChange(() => { renderAccountBanner(); }); } catch (_) {}
+  // Initial render
+  renderAccountBanner();
+
+  // --- Page mounts ---
+
+  // Auth page handlers (login/register only; no global auth enforcement)
+  function mountAuth() {
+    if (path !== 'auth.html') return;
+    const userRegister = document.getElementById('user-register');
+    const userLogin = document.getElementById('user-login');
+    if (userRegister) {
+      userRegister.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('user-reg-name').value.trim();
+        const email = document.getElementById('user-reg-email').value.trim();
+        const pass = document.getElementById('user-reg-pass').value;
+        try {
+          showLoading('Creating account...');
+          const { data, error } = await supabaseClient.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+          hideLoading();
+          if (error) throw error;
+          const hasSession = !!(data && data.session);
+          if (!hasSession) {
+            // Email confirmation likely required: keep user on auth page
+            showToast('success', 'Registered. Check your email to confirm, then sign in.');
+            // Switch to Login tab if present
+            const loginTab = document.getElementById('user-login-tab');
+            if (loginTab && typeof loginTab.click === 'function') loginTab.click();
+            return;
+          }
+          showToast('success', 'Registered and signed in.');
+          window.location.href = 'index.html';
+        } catch (err) {
+          hideLoading();
+          console.error('Registration failed', err);
+          showToast('error', err?.message || 'Registration failed');
+        }
       });
     }
-  } else {
-    // Add login/register link only if not logged in
-    const loginLink = document.createElement("a");
-    loginLink.href = "auth.html";
-    loginLink.className = "btn light";
-    loginLink.textContent = "Login / Register";
-    nav.appendChild(loginLink);
+    if (userLogin) {
+      userLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('user-login-email').value.trim();
+        const pass = document.getElementById('user-login-pass').value;
+        try {
+          showLoading('Signing in...');
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+          hideLoading();
+          if (error) throw error;
+          window.location.href = 'index.html';
+        } catch (err) {
+          hideLoading();
+          console.error('Login failed', err);
+          showToast('error', err?.message || 'Login failed');
+        }
+      });
+    }
   }
-}
-renderAccountNav();
 
-// Admin guard
-if (location.pathname.endsWith("/admin.html") || location.pathname.endsWith("admin.html")) {
-  const u = getCurrentUser();
-  if (!u || u.role !== "admin") {
-    window.location.href = "auth.html";
+  // Index
+  function mountIndex() {
+    if (!document.getElementById('event-list')) return;
+    const listEl = document.getElementById('event-list'); const searchEl = document.getElementById('search'); let sortAsc = true;
+    function renderList(items) { listEl.innerHTML = ''; if (!items || items.length === 0) { listEl.innerHTML = '<p>No events found.</p>'; return; } items.forEach(e => { const card = document.createElement('a'); card.className = 'card event-card'; card.href = `event.html?id=${e.id}`; card.innerHTML = `\n          <div class="card-body">\n            <div class="card-header">\n              <h3 class="card-title">${e.title}</h3>\n              <span class="price">\u20b1${e.price}</span>\n            </div>\n            <p class="muted">${formatDate(e.date)} \u00b7 ${e.venue}</p>\n            <p class="desc">${e.description}</p>\n          </div>\n        `; listEl.appendChild(card); }); }
+    function getFilteredSorted() { const q = (searchEl?.value || '').trim().toLowerCase(); let evts = (window.DB.events || []).slice(); if (q) evts = evts.filter(e => (e.title||'').toLowerCase().includes(q) || (e.description||'').toLowerCase().includes(q) || (e.venue||'').toLowerCase().includes(q)); evts.sort((a,b) => (new Date(a.date) - new Date(b.date)) * (sortAsc ? 1 : -1)); return evts; }
+    function refresh() { renderList(getFilteredSorted()); }
+    window.sortEvents = function () { sortAsc = !sortAsc; refresh(); };
+    searchEl?.addEventListener('input', refresh);
+    refresh();
   }
-}
 
-// ADMIN: create, list, edit, delete
-if (document.getElementById("create-event-form")) {
-  const form = document.getElementById("create-event-form");
-  const listEl = document.getElementById("admin-event-list");
+  
+  // Admin page
+  function mountAdmin() {
+    if (!document.getElementById('create-event-form')) return;
+    const form = document.getElementById('create-event-form'); const listEl = document.getElementById('admin-event-list');
+    async function renderAdminList() {
+      try {
+        showLoading('Loading events...');
+        const events = (await supabaseClient.from('events').select('*').order('date', { ascending: true })).data || [];
+        listEl.innerHTML = '';
+        events.forEach(e => {
+        const row = document.createElement('div'); row.className = 'admin-row card'; row.innerHTML = `\n          <div class="card-body">\n            <div class="card-header">\n              <strong>${e.title}</strong>\n              <span class="muted">${formatDate(e.date)}</span>\n            </div>\n            <div class="muted">${e.venue} \u00b7 $${e.price} \u00b7 ${e.rows}x${e.cols}</div>\n            <div class="actions">\n              <button data-id="${e.id}" class="btn light edit">Edit</button>\n              <button data-id="${e.id}" class="btn danger delete">Delete</button>\n            </div>\n          </div>\n        `; listEl.appendChild(row);
+        });
+        hideLoading();
+      } catch (err) { hideLoading(); showToast('error', 'Could not load admin events'); console.error(err); }
+      // delete handlers
+      listEl.querySelectorAll('.delete').forEach(btn => btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id'); if (!confirm('Delete this event?')) return; try { showLoading('Deleting...'); await deleteEvent(id); await renderAdminList(); hideLoading(); showToast('success', 'Event deleted'); } catch (err) { hideLoading(); showToast('error', 'Delete failed'); console.error(err); }
+      }));
+      // edit handlers
+  listEl.querySelectorAll('.edit').forEach(btn => btn.addEventListener('click', async () => { const id = btn.getAttribute('data-id'); try { showLoading('Loading event...'); const { data: ev } = await supabaseClient.from('events').select('*').eq('id', id).single(); hideLoading(); if (!ev) return; form.dataset.editing = id; document.getElementById('title').value = ev.title; document.getElementById('description').value = ev.description; document.getElementById('date').value = ev.date; document.getElementById('venue').value = ev.venue; document.getElementById('rows').value = ev.rows; document.getElementById('cols').value = ev.cols; document.getElementById('price').value = ev.price; } catch (err) { hideLoading(); showToast('error', 'Failed to load event'); console.error(err); } }));
+    }
 
-  function renderAdminList() {
-    const events = loadEvents();
-    listEl.innerHTML = "";
-    events
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .forEach(e => {
-        const row = document.createElement("div");
-        row.className = "admin-row card";
-        row.innerHTML = `
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault(); const editingId = form.dataset.editing; const payload = { id: editingId || generateId('evt'), title: document.getElementById('title').value.trim(), description: document.getElementById('description').value.trim(), date: document.getElementById('date').value, venue: document.getElementById('venue').value.trim(), rows: parseInt(document.getElementById('rows').value, 10) || 1, cols: parseInt(document.getElementById('cols').value, 10) || 1, price: parseFloat(document.getElementById('price').value) || 0, seats: {} };
+      try {
+          showLoading('Saving event...');
+          if (editingId) { await updateEvent(payload); delete form.dataset.editing; showToast('success', 'Event updated'); } else { await addEvent(payload); showToast('success', 'Event created'); }
+          form.reset(); await renderAdminList(); hideLoading();
+        } catch (err) { hideLoading(); showToast('error', 'Save failed'); console.error(err); }
+    });
+
+    renderAdminList();
+  }
+
+  // Secured Admin page (requires logged-in user with role 'admin')
+  function mountAdminSecured() {
+    const form = document.getElementById('create-event-form');
+    const listEl = document.getElementById('admin-event-list');
+    if (!form || !listEl) return;
+
+    (async () => {
+      try {
+        showLoading('Checking access...');
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session || !session.user) {
+          hideLoading();
+          const main = document.querySelector('main') || document.body;
+          main.innerHTML = '<div class="card"><div class="card-body"><h2>Access denied</h2><p class="error">Login required. Admin access only.</p></div></div>';
+          showToast('error', 'Admin access required. Please log in.');
+          return;
+        }
+        const userId = session.user.id;
+        let profile = null;
+        try {
+          const res = await supabaseClient.from('profiles').select('*').eq('id', userId).maybeSingle();
+          profile = res.data || null;
+        } catch (e) {
+          profile = null;
+        }
+        if (!profile || profile.role !== 'admin') {
+          hideLoading();
+          const main = document.querySelector('main') || document.body;
+          main.innerHTML = '<div class="card"><div class="card-body"><h2>Access denied</h2><p class="error">You do not have admin permissions.</p></div></div>';
+          showToast('error', 'You do not have admin permissions.');
+          return;
+        }
+
+        // Access granted — proceed with admin logic
+        async function renderAdminList() {
+          try {
+            showLoading('Loading events...');
+            const events = (await supabaseClient.from('events').select('*').order('date', { ascending: true })).data || [];
+            listEl.innerHTML = '';
+            events.forEach(e => {
+              const row = document.createElement('div');
+              row.className = 'admin-row card';
+              row.innerHTML = `
           <div class="card-body">
             <div class="card-header">
               <strong>${e.title}</strong>
               <span class="muted">${formatDate(e.date)}</span>
             </div>
-            <div class="muted">${e.venue} · $${e.price} · ${e.rows}x${e.cols}</div>
+            <div class="muted">${e.venue} · ${e.price} · ${e.rows}x${e.cols}</div>
             <div class="actions">
               <button data-id="${e.id}" class="btn light edit">Edit</button>
               <button data-id="${e.id}" class="btn danger delete">Delete</button>
             </div>
-          </div>
-        `;
-        listEl.appendChild(row);
-      });
-
-    listEl.querySelectorAll(".delete").forEach(btn => btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-id");
-      const eventToDelete = loadEvents().find(e => e.id === id);
-      if (!eventToDelete) return;
-      
-      if (confirm(`Are you sure you want to delete "${eventToDelete.title}"?`)) {
-        const events = loadEvents().filter(e => e.id !== id);
-        saveEvents(events);
-        renderAdminList();
-        alert("Event deleted successfully");
-      }
-    }));
-
-    listEl.querySelectorAll(".edit").forEach(btn => btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-id");
-      const events = loadEvents();
-      const ev = events.find(e => e.id === id);
-      if (!ev) return;
-      // Load into form for quick edit
-      form.dataset.editing = id;
-      document.getElementById("title").value = ev.title;
-      document.getElementById("description").value = ev.description;
-      document.getElementById("date").value = ev.date;
-      document.getElementById("venue").value = ev.venue;
-      document.getElementById("rows").value = ev.rows;
-      document.getElementById("cols").value = ev.cols;
-      document.getElementById("price").value = ev.price;
-    }));
-  }
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const events = loadEvents();
-    const editingId = form.dataset.editing;
-    const payload = {
-      id: editingId || generateId("evt"),
-      title: document.getElementById("title").value.trim(),
-      description: document.getElementById("description").value.trim(),
-      date: document.getElementById("date").value,
-      venue: document.getElementById("venue").value.trim(),
-      rows: parseInt(document.getElementById("rows").value, 10),
-      cols: parseInt(document.getElementById("cols").value, 10),
-      price: parseFloat(document.getElementById("price").value),
-      seats: editingId ? (events.find(e => e.id === editingId)?.seats || {}) : {}
-    };
-    if (editingId) {
-      const idx = events.findIndex(e => e.id === editingId);
-      events[idx] = payload;
-      delete form.dataset.editing;
-      alert("Event updated.");
-    } else {
-      events.push(payload);
-      alert("Event created.");
-    }
-    saveEvents(events);
-    form.reset();
-    renderAdminList();
-  });
-
-  renderAdminList();
-}
-
-// EVENT: details + seat selection + checkout
-if (document.getElementById("seat-map")) {
-  const params = new URLSearchParams(window.location.search);
-  const eventId = params.get("id");
-  const events = loadEvents();
-  const event = events.find(e => e.id === eventId);
-  if (!event) {
-    window.location.href = "index.html";
-  }
-
-  document.getElementById("event-title").textContent = event.title;
-  document.getElementById("event-description").textContent = event.description;
-  document.getElementById("event-date").textContent = formatDate(event.date);
-  document.getElementById("event-venue").textContent = event.venue;
-
-  const seatMap = document.getElementById("seat-map");
-  seatMap.style.gridTemplateColumns = `repeat(${event.cols}, 36px)`;
-
-  let selectedSeats = [];
-  for (let r = 0; r < event.rows; r++) {
-    for (let c = 0; c < event.cols; c++) {
-      const seatId = `${r}-${c}`;
-      const seat = document.createElement("button");
-      seat.type = "button";
-      seat.className = "seat " + (event.seats[seatId] ? "reserved" : "");
-      seat.setAttribute("aria-label", `Seat ${seatId}`);
-      seat.textContent = seatIdToCode(seatId);
-      seat.onclick = () => {
-        if (seat.classList.contains("reserved")) return;
-        seat.classList.toggle("selected");
-        if (selectedSeats.includes(seatId)) {
-          selectedSeats = selectedSeats.filter(s => s !== seatId);
-        } else {
-          selectedSeats.push(seatId);
-        }
-        document.getElementById("summary").textContent =
-          `${selectedSeats.length} seats selected | Total: ₱${(selectedSeats.length * event.price).toFixed(2)}`;
-      };
-      seatMap.appendChild(seat);
-    }
-  }
-
-  document.getElementById("checkout-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      alert("You must be signed in to book a ticket. Please login or register first.");
-      return;
-    }
-    if (selectedSeats.length === 0) {
-      alert("Please select at least one seat.");
-      return;
-    }
-    const buyer = {
-      name: document.getElementById("buyer-name").value.trim(),
-      email: document.getElementById("buyer-email").value.trim()
-    };
-    const ticket = {
-      id: generateId("tkt"),
-      eventId: event.id,
-      buyer,
-      seats: [...selectedSeats],
-      checkedIn: false,
-      createdAt: new Date().toISOString()
-    };
-    // Reserve seats and persist
-    selectedSeats.forEach(s => event.seats[s] = true);
-    saveEvents(events);
-
-    const tickets = loadTickets();
-    tickets.push(ticket);
-    saveTickets(tickets);
-
-    // Save last generated ticket ID for ticket.html view
-    localStorage.setItem("lastTicketId", ticket.id);
-    alert("Payment simulated. Ticket generated!");
-    window.location.href = "ticket.html";
-  });
-}
-
-// TICKET: render and QR code
-if (document.getElementById("ticket")) {
-  const lastId = localStorage.getItem("lastTicketId");
-  const tickets = loadTickets();
-  const ticket = tickets.find(t => t.id === lastId) || tickets[tickets.length - 1];
-  if (!ticket) {
-    document.getElementById("ticket").innerHTML = "<p>No ticket found.</p>";
-  } else {
-    const events = loadEvents();
-    const event = events.find(e => e.id === ticket.eventId);
-    document.getElementById("ticket").innerHTML = `
-      <div class="card ticket-card">
-        <div class="card-body">
-          <h2>${event.title}</h2>
-          <p class="muted">${formatDate(event.date)} · ${event.venue}</p>
-          <p><strong>Seats:</strong> ${ticket.seats.map(seatIdToCode).join(", ")}</p>
-          <p><strong>Buyer:</strong> ${ticket.buyer.name} (${ticket.buyer.email})</p>
-          <p class="muted">Ticket ID: ${ticket.id}</p>
-        </div>
-      </div>
-    `;
-    // Wait for QRious library to load if not available yet
-    const generateQRCode = () => {
-      if (typeof QRious !== "undefined") {
-        const ticketData = {
-          ticketId: ticket.id,
-          buyerName: ticket.buyer.name,
-          buyerEmail: ticket.buyer.email,
-          eventName: event.title,
-          dateTime: formatDate(event.date),
-          venue: event.venue,
-          seats: ticket.seats.map(seatIdToCode).join(", ")
-        };
-        console.log("Generating QR code for ticket:", ticketData);
-        // Create a data URL that opens a ticket details page directly
-        const ticketHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>EventBuzz - Ticket Details</title>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 20px; 
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .ticket { 
-              background: white; 
-              padding: 30px; 
-              border-radius: 15px; 
-              box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-              max-width: 400px;
-              width: 100%;
-            }
-            .header { 
-              text-align: center; 
-              color: #6b46c1; 
-              margin-bottom: 25px; 
-              border-bottom: 2px solid #e5e7eb;
-              padding-bottom: 15px;
-            }
-            .detail { 
-              margin: 15px 0; 
-              padding: 10px 0; 
-              border-bottom: 1px solid #f3f4f6; 
-              display: flex;
-              justify-content: space-between;
-            }
-            .label { 
-              font-weight: bold; 
-              color: #374151; 
-              flex: 1;
-            }
-            .value { 
-              color: #6b7280; 
-              text-align: right;
-              flex: 1;
-            }
-            .ticket-id {
-              background: #f3f4f6;
-              padding: 10px;
-              border-radius: 8px;
-              text-align: center;
-              margin-top: 20px;
-              font-family: monospace;
-              font-size: 14px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            <div class="header">
-              <h1>🎟️ EventBuzz</h1>
-              <h2>${ticketData.eventName}</h2>
-            </div>
-            <div class="detail">
-              <span class="label">Date & Time:</span>
-              <span class="value">${ticketData.dateTime}</span>
-            </div>
-            <div class="detail">
-              <span class="label">Venue:</span>
-              <span class="value">${ticketData.venue}</span>
-            </div>
-            <div class="detail">
-              <span class="label">Seats:</span>
-              <span class="value">${ticketData.seats}</span>
-            </div>
-            <div class="detail">
-              <span class="label">Buyer:</span>
-              <span class="value">${ticketData.buyerName}</span>
-            </div>
-            <div class="detail">
-              <span class="label">Email:</span>
-              <span class="value">${ticketData.buyerEmail}</span>
-            </div>
-            <div class="ticket-id">
-              <strong>Ticket ID:</strong> ${ticketData.ticketId}
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-        // Create a data URL that will open the ticket details directly
-        const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(ticketHtml)}`;
-        console.log("QR code data URL created:", dataUrl.substring(0, 100) + "...");
-
-        const qrElement = document.getElementById("qrcode");
-        if (qrElement) {
-          new QRious({
-            element: qrElement,
-            value: dataUrl,
-            size: 300,
-            background: 'white',
-            foreground: 'black',
-            level: 'L',
-            margin: 4
-          });
-          console.log("QR code generated successfully");
-        } else {
-          console.error("QR code element not found!");
-        }
-      } else {
-        console.log("QRious library not loaded yet, retrying in 100ms...");
-        setTimeout(generateQRCode, 100);
-      }
-    };
-
-    generateQRCode();
-    // Email receipt button
-    const emailBtn = document.getElementById("email-receipt");
-    if (emailBtn) {
-      const subject = encodeURIComponent(`Your EventBuzz Ticket: ${event.title}`);
-      const body = encodeURIComponent(
-        `Hi ${ticket.buyer.name},\n\n` +
-        `Thanks for your purchase! Here are your ticket details:\n` +
-        `Event: ${event.title}\n` +
-        `Date: ${formatDate(event.date)}\n` +
-        `Venue: ${event.venue}\n` +
-        `Seats: ${ticket.seats.map(seatIdToCode).join(', ')}\n` +
-        `Ticket ID: ${ticket.id}\n\n` +
-        `You can print the page or save the QR code image.\n\n` +
-        `— EventBuzz`
-      );
-      emailBtn.addEventListener('click', () => {
-        window.location.href = `mailto:${ticket.buyer.email}?subject=${subject}&body=${body}`;
-      });
-    }
-  }
-}
-
-// CHECK-IN: validate by ID
-window.checkIn = function checkIn() {
-  const id = (document.getElementById("ticket-id")?.value || "").trim();
-  if (!id) return;
-  const tickets = loadTickets();
-  const idx = tickets.findIndex(t => t.id === id);
-  const resultEl = document.getElementById("checkin-result");
-  if (idx === -1) {
-    resultEl.textContent = "❌ Ticket not found.";
-    resultEl.className = "error";
-    return;
-  }
-  if (tickets[idx].checkedIn) {
-    resultEl.textContent = "⚠️ Ticket already checked in.";
-    resultEl.className = "warn";
-    return;
-  }
-  tickets[idx].checkedIn = true;
-  tickets[idx].checkedInAt = new Date().toISOString();
-  saveTickets(tickets);
-  resultEl.textContent = "✅ Ticket valid. Checked in!";
-  resultEl.className = "success";
-};
-
-// CHECK-IN: QR file decode
-if (document.getElementById("qr-file")) {
-  const fileInput = document.getElementById("qr-file");
-  fileInput.addEventListener("change", async () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-    try {
-      if (window.QrScanner) {
-        const result = await window.QrScanner.scanImage(file);
-
-        // Check if the QR code contains a data URL with ticket HTML
-        if (result.startsWith('data:text/html;charset=utf-8,')) {
-          try {
-            // Extract the HTML content from the data URL
-            const htmlContent = decodeURIComponent(result.replace('data:text/html;charset=utf-8,', ''));
-
-            // Parse the HTML to extract ticket data
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, 'text/html');
-
-            // Extract ticket details from the HTML
-            const ticketData = {
-              eventName: doc.querySelector('h2')?.textContent || 'Unknown Event',
-              dateTime: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Date & Time'))?.querySelector('.value')?.textContent || 'Unknown Date',
-              venue: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Venue'))?.querySelector('.value')?.textContent || 'Unknown Venue',
-              seats: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Seats'))?.querySelector('.value')?.textContent || 'Unknown Seats',
-              buyerName: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Buyer'))?.querySelector('.value')?.textContent || 'Unknown Buyer',
-              buyerEmail: Array.from(doc.querySelectorAll('.detail')).find(d => d.textContent.includes('Email'))?.querySelector('.value')?.textContent || 'Unknown Email',
-              ticketId: doc.querySelector('.ticket-id')?.textContent?.replace('Ticket ID:', '').trim() || 'Unknown ID'
-            };
-
-            // Display ticket details
-            displayTicketDetails(ticketData);
-            // Also set the ticket ID for validation
-            document.getElementById("ticket-id").value = ticketData.ticketId;
-            return;
-          } catch (error) {
-            console.error('Error parsing ticket data from QR:', error);
+          </div>`;
+              listEl.appendChild(row);
+            });
+            hideLoading();
+          } catch (err) {
+            hideLoading();
+            showToast('error', 'Could not load admin events');
+            console.error(err);
           }
-        }
-
-        // Check if the QR code contains a URL with ticket data (legacy support)
-        if (result.includes('ticket.html?data=')) {
-          const url = new URL(result);
-          const dataParam = url.searchParams.get('data');
-          if (dataParam) {
+          // delete handlers
+          listEl.querySelectorAll('.delete').forEach(btn => btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            if (!confirm('Delete this event?')) return;
+            try { showLoading('Deleting...'); await deleteEvent(id); await renderAdminList(); hideLoading(); showToast('success', 'Event deleted'); } catch (err) { hideLoading(); showToast('error', 'Delete failed'); console.error(err); }
+          }));
+          // edit handlers
+          listEl.querySelectorAll('.edit').forEach(btn => btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
             try {
-              const ticketData = JSON.parse(decodeURIComponent(dataParam));
-              // Display ticket details
-              displayTicketDetails(ticketData);
-              // Also set the ticket ID for validation
-              document.getElementById("ticket-id").value = ticketData.ticketId;
-              return;
-            } catch (error) {
-              console.error('Error parsing ticket data from QR:', error);
-            }
-          }
+              showLoading('Loading event...');
+              const { data: ev } = await supabaseClient.from('events').select('*').eq('id', id).single();
+              hideLoading();
+              if (!ev) return;
+              form.dataset.editing = id;
+              document.getElementById('title').value = ev.title;
+              document.getElementById('description').value = ev.description;
+              document.getElementById('date').value = ev.date;
+              document.getElementById('venue').value = ev.venue;
+              document.getElementById('rows').value = ev.rows;
+              document.getElementById('cols').value = ev.cols;
+              document.getElementById('price').value = ev.price;
+            } catch (err) { hideLoading(); showToast('error', 'Failed to load event'); console.error(err); }
+          }));
         }
 
-        // Check if it's just a ticket ID (starts with tkt_)
-        if (result.startsWith('tkt_')) {
-          document.getElementById("ticket-id").value = result;
-          checkIn();
-          return;
-        }
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const editingId = form.dataset.editing;
+          const payload = {
+            id: editingId || generateId('evt'),
+            title: document.getElementById('title').value.trim(),
+            description: document.getElementById('description').value.trim(),
+            date: document.getElementById('date').value,
+            venue: document.getElementById('venue').value.trim(),
+            rows: parseInt(document.getElementById('rows').value, 10) || 1,
+            cols: parseInt(document.getElementById('cols').value, 10) || 1,
+            price: parseFloat(document.getElementById('price').value) || 0,
+            seats: {}
+          };
+          try {
+            showLoading('Saving event...');
+            if (editingId) { await updateEvent(payload); delete form.dataset.editing; showToast('success', 'Event updated'); }
+            else { await addEvent(payload); showToast('success', 'Event created'); }
+            form.reset();
+            await renderAdminList();
+            hideLoading();
+          } catch (err) { hideLoading(); showToast('error', 'Save failed'); console.error(err); }
+        });
 
-        // Fallback: treat as ticket ID
-        document.getElementById("ticket-id").value = result;
-        checkIn();
-      } else {
-        alert("QR decoder not loaded.");
+        await renderAdminList();
+      } catch (err) {
+        hideLoading();
+        console.error(err);
+        const main = document.querySelector('main') || document.body;
+        main.innerHTML = '<div class="card"><div class="card-body"><h2>Error</h2><p class="error">Failed to verify access. See console.</p></div></div>';
+        showToast('error', 'Failed to verify access.');
       }
-    } catch (err) {
-      alert("Failed to decode QR image.");
-    } finally {
-      fileInput.value = "";
-    }
-  });
-}
+    })();
+  }
 
-// Function to display ticket details from QR code
-function displayTicketDetails(ticketData) {
-  const resultEl = document.getElementById("checkin-result");
-  resultEl.innerHTML = `
-    <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 16px; margin: 12px 0;">
-      <h3 style="margin: 0 0 12px 0; color: #0369a1;">📋 Ticket Details</h3>
-      <div style="display: grid; gap: 8px; font-size: 14px;">
-        <div><strong>Event:</strong> ${ticketData.eventName}</div>
-        <div><strong>Date & Time:</strong> ${ticketData.dateTime}</div>
-        <div><strong>Venue:</strong> ${ticketData.venue}</div>
-        <div><strong>Seats:</strong> ${ticketData.seats}</div>
-        <div><strong>Buyer:</strong> ${ticketData.buyerName} (${ticketData.buyerEmail})</div>
-        <div><strong>Ticket ID:</strong> ${ticketData.ticketId}</div>
-      </div>
-      <div style="margin-top: 12px;">
-        <button class="btn" onclick="checkIn()">Validate & Check-in</button>
-      </div>
-    </div>
-  `;
-  resultEl.className = "success";
-}
+  // Event page
+  function mountEvent() {
+    if (!document.getElementById('seat-map')) return;
+    const params = new URLSearchParams(window.location.search); const eventId = params.get('id');
+    if (!eventId) { window.location.href = 'index.html'; return; }
+    (async () => {
+  const { data: event, error: evtErr } = await supabaseClient.from('events').select('*').eq('id', eventId).single();
+  if (evtErr || !event) { showToast('error', 'Event not found'); window.location.href = 'index.html'; return; }
+      if (!event) { window.location.href = 'index.html'; return; }
+      document.getElementById('event-title').textContent = event.title; document.getElementById('event-description').textContent = event.description; document.getElementById('event-date').textContent = formatDate(event.date); document.getElementById('event-venue').textContent = event.venue;
+      const seatMap = document.getElementById('seat-map'); seatMap.style.gridTemplateColumns = `repeat(${event.cols}, 36px)`; let selectedSeats = [];
+      for (let r = 0; r < event.rows; r++) for (let c = 0; c < event.cols; c++) { const seatId = `${r}-${c}`; const seat = document.createElement('button'); seat.type = 'button'; seat.className = 'seat ' + (event.seats?.[seatId] ? 'reserved' : ''); seat.setAttribute('aria-label', `Seat ${seatId}`); seat.textContent = seatIdToCode(seatId); seat.onclick = () => { if (seat.classList.contains('reserved')) return; seat.classList.toggle('selected'); if (selectedSeats.includes(seatId)) selectedSeats = selectedSeats.filter(s => s !== seatId); else selectedSeats.push(seatId); document.getElementById('summary').textContent = `${selectedSeats.length} seats selected | Total: \u20b1${(selectedSeats.length * event.price).toFixed(2)}`; }; seatMap.appendChild(seat); }
+
+      document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+        e.preventDefault(); if (selectedSeats.length === 0) { showToast('error','Please select at least one seat.'); return; }
+        const buyer = { name: document.getElementById('buyer-name').value.trim(), email: document.getElementById('buyer-email').value.trim() };
+        const ticket = { id: generateId('tkt'), eventid: event.id, buyer, seats: [...selectedSeats], checkedin: false, created_at: new Date().toISOString() };
+        try {
+          showLoading('Processing payment...');
+          // reserve seats on server
+          selectedSeats.forEach(s => event.seats[s] = true);
+          await updateEvent(event);
+          await addTicket(ticket);
+          // set lastTicketId for this session
+          window.DB.lastTicketId = ticket.id;
+          hideLoading(); showToast('success', 'Ticket purchased');
+          window.location.href = 'ticket.html';
+        } catch (err) { hideLoading(); showToast('error', 'Ticket purchase failed'); console.error(err); }
+      });
+    })();
+  }
+
+  // Ticket page
+  function mountTicket() {
+    if (!document.getElementById('ticket')) return;
+    (async () => {
+      // determine ticket ID from DB or session
+      const lastId = window.DB.lastTicketId || (await supabaseClient.from('tickets').select('id').order('created_at', { ascending: false }).limit(1)).data?.[0]?.id;
+  const { data: ticketData } = await supabaseClient.from('tickets').select('*').eq('id', lastId).limit(1);
+  const ticket = ticketData?.[0] || null;
+      if (!ticket) { document.getElementById('ticket').innerHTML = '<p>No ticket found.</p>'; return; }
+      const { data: ev } = await supabaseClient.from('events').select('*').eq('id', ticket.eventid).single(); const event = ev || { title: 'Unknown', date: ticket.created_at, venue: '' };
+      document.getElementById('ticket').innerHTML = `\n      <div class="card ticket-card">\n        <div class="card-body">\n          <h2>${event.title}</h2>\n          <p class="muted">${formatDate(event.date)} \u00b7 ${event.venue}</p>\n          <p><strong>Seats:</strong> ${ticket.seats.map(seatIdToCode).join(', ')}</p>\n          <p><strong>Buyer:</strong> ${ticket.buyer.name} (${ticket.buyer.email})</p>\n          <p class="muted">Ticket ID: ${ticket.id}</p>\n        </div>\n      </div>\n    `;
+      // QR
+      const generateQRCode = () => {
+        if (typeof QRious !== 'undefined') {
+          const ticketHtml = `<!doctype html><html><body><h2>${event.title}</h2><div>Ticket ID: ${ticket.id}</div></body></html>`;
+          const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(ticketHtml)}`;
+          const qrElement = document.getElementById('qrcode'); if (qrElement) { try { new QRious({ element: qrElement, value: dataUrl, size: 300 }); } catch (e) { console.warn('QRious error', e); showToast('error','QR generation failed'); } }
+        } else setTimeout(generateQRCode, 200);
+      };
+      generateQRCode();
+      const emailBtn = document.getElementById('email-receipt'); if (emailBtn) { const subject = encodeURIComponent(`Your EventBuzz Ticket: ${event.title}`); const body = encodeURIComponent(`Hi ${ticket.buyer.name},\n\nEvent: ${event.title}\nDate: ${formatDate(event.date)}\nVenue: ${event.venue}\nSeats: ${ticket.seats.map(seatIdToCode).join(', ')}\nTicket ID: ${ticket.id}`); emailBtn.addEventListener('click', () => { window.location.href = `mailto:${ticket.buyer.email}?subject=${subject}&body=${body}`; }); }
+    })();
+  }
+
+  // Check-in
+  window.checkIn = async function () {
+    const id = (document.getElementById('ticket-id')?.value || '').trim(); if (!id) { showToast('error','Please enter a ticket ID'); return; } const resultEl = document.getElementById('checkin-result'); if (!resultEl) return; try { showLoading('Validating ticket...'); const { data: tickets } = await supabaseClient.from('tickets').select('*').eq('id', id).limit(1); const ticket = tickets?.[0]; if (!ticket) { hideLoading(); resultEl.textContent = '\u274c Ticket not found.'; resultEl.className = 'error'; return; } if (ticket.checkedin) { hideLoading(); resultEl.textContent = '\u26a0\ufe0f Ticket already checked in.'; resultEl.className = 'warn'; return; } ticket.checkedin = true; ticket.checkedin_at = new Date().toISOString(); await updateTicket(ticket); hideLoading(); resultEl.textContent = '\u2705 Ticket valid. Checked in!'; resultEl.className = 'success'; showToast('success','Checked in'); } catch (err) { hideLoading(); resultEl.textContent = 'Error checking in: ' + (err.message || JSON.stringify(err)); resultEl.className = 'error'; showToast('error','Check-in failed'); }
+  };
+
+  // QR file upload for check-in (requires qr-scanner to be included on that page)
+  function mountCheckinQr() {
+    const fileInput = document.getElementById('qr-file');
+    if (!fileInput) return;
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      try {
+        if (window.QrScanner) {
+          const result = await window.QrScanner.scanImage(file);
+          if (result.startsWith('data:text/html')) {
+            const html = decodeURIComponent(result.replace(/^data:text\/html(;charset=[^,]+)?,/, ''));
+            const m = html.match(/Ticket ID:\s*([a-z0-9_\-]+)/i);
+            if (m) { document.getElementById('ticket-id').value = m[1]; checkIn(); return; }
+          }
+          if (result.startsWith('tkt_')) { document.getElementById('ticket-id').value = result; checkIn(); return; }
+          document.getElementById('ticket-id').value = result; checkIn();
+        } else {
+          showToast('error', 'QR decoder not loaded.');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Failed to decode QR image.');
+      } finally {
+        fileInput.value = '';
+      }
+    });
+  }
+
+  // Mount pages
+  mountAuth(); mountIndex(); mountAdminSecured(); mountEvent(); mountTicket(); mountCheckinQr();
+
+})();

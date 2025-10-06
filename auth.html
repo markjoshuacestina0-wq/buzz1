@@ -2,129 +2,125 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>EventBuzz - Sign in / Register</title>
-    <link rel="stylesheet" href="styles.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        .auth-wrap {
-            display: grid;
-            gap: 16px;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            max-width: 960px;
-            margin: 24px auto;
-            padding: 0 16px;
-        }
+  <meta charset="UTF-8">
+  <title>EventBuzz - Sign in / Register</title>
+  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    .auth-wrap {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
 
-        .floating {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            position: relative;
-            top: 0;
-            animation: float 6s ease-in-out infinite;
-        }
+    .floating {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      position: relative;
+      top: 0;
+      animation: float 6s ease-in-out infinite;
+    }
 
-        .floating:nth-child(2) {
-            animation-delay: 1s;
-        }
+    .floating:nth-child(2) {
+      animation-delay: 1s;
+    }
 
-        @keyframes float {
+    @keyframes float {
 
-            0%,
-            100% {
-                transform: translateY(0);
-            }
+      0%,
+      100% {
+        transform: translateY(0);
+      }
 
-            50% {
-                transform: translateY(-6px);
-            }
-        }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
 
-        .tab {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
+    .tab {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
 
-        .tab button {
-            background: #eef2ff;
-            color: #3730a3;
-            border: 1px solid #c7d2fe;
-        }
+    .tab button {
+      background: #eef2ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+    }
 
-        .tab button.active {
-            background: #c7d2fe;
-        }
-    </style>
+    .tab button.active {
+      background: #c7d2fe;
+    }
+  </style>
+  <script defer src="supabase.js"></script>
 </head>
 
 <body>
-    <header>
-        <h1>Account · EventBuzz</h1>
-        <nav>
-            <a href="index.html">Events</a>
-           
-        </nav>
-    </header>
-    <main>
-        <div class="auth-wrap">
-            <div class="card floating">
-                <div class="card-body">
-                    <h2>Admin</h2>
-                    <div class="tab">
-                        <button class="btn light active" id="admin-login-tab">Login</button>
-                        <button class="btn light" id="admin-register-tab">Register</button>
-                    </div>
-                    <form id="admin-login" class="auth-form">
-                        <input placeholder="Email" type="email" id="admin-login-email" required>
-                        <input placeholder="Password" type="password" id="admin-login-pass" required>
-                        <button class="btn" type="submit">Login as Admin</button>
-                    </form>
-                    <form id="admin-register" class="auth-form" style="display:none;">
-                        <input placeholder="Name" id="admin-reg-name" required>
-                        <input placeholder="Email" type="email" id="admin-reg-email" required>
-                        <input placeholder="Password" type="password" id="admin-reg-pass" required>
-                        <button class="btn" type="submit">Create Admin</button>
-                    </form>
-                </div>
-            </div>
+  <header>
+    <h1>Account · EventBuzz</h1>
+    <nav>
+      <a href="index.html">Events</a>
+    </nav>
+  </header>
 
-            <div class="card floating">
-                <div class="card-body">
-                    <h2>User</h2>
-                    <div class="tab">
-                        <button class="btn light active" id="user-login-tab">Login</button>
-                        <button class="btn light" id="user-register-tab">Register</button>
-                    </div>
-                    <form id="user-login" class="auth-form">
-                        <input placeholder="Email" type="email" id="user-login-email" required>
-                        <input placeholder="Password" type="password" id="user-login-pass" required>
-                        <button class="btn" type="submit">Login as User</button>
-                    </form>
-                    <form id="user-register" class="auth-form" style="display:none;">
-                        <input placeholder="Name" id="user-reg-name" required>
-                        <input placeholder="Email" type="email" id="user-reg-email" required>
-                        <input placeholder="Password" type="password" id="user-reg-pass" required>
-                        <button class="btn" type="submit">Create User</button>
-                    </form>
-                </div>
-            </div>
+  <main>
+    <div class="auth-wrap">
+      <div class="card floating">
+        <div class="card-body">
+          <h2>Sign in or Register</h2>
+          <div class="tab" role="tablist" aria-label="Authentication tabs">
+            <button type="button" class="btn light active" id="user-login-tab" role="tab" aria-selected="true" aria-controls="user-login">Login</button>
+            <button type="button" class="btn light" id="user-register-tab" role="tab" aria-selected="false" aria-controls="user-register">Register</button>
+          </div>
+
+          <form id="user-login" class="auth-form" aria-labelledby="user-login-tab">
+            <input placeholder="Email" type="email" id="user-login-email" autocomplete="email" required>
+            <input placeholder="Password" type="password" id="user-login-pass" autocomplete="current-password" required>
+            <button class="btn" type="submit">Login</button>
+          </form>
+
+          <form id="user-register" class="auth-form" aria-labelledby="user-register-tab" hidden>
+            <input placeholder="Name" id="user-reg-name" autocomplete="name" required>
+            <input placeholder="Email" type="email" id="user-reg-email" autocomplete="email" required>
+            <input placeholder="Password" type="password" id="user-reg-pass" autocomplete="new-password" required>
+            <button class="btn" type="submit">Create Account</button>
+          </form>
         </div>
-    </main>
+      </div>
+    </div>
+  </main>
 
-    <script src="app.js"></script>
-    <script>
-        // Simple tab toggles
-        function setupTabs(prefix) {
-            const loginTab = document.getElementById(prefix + '-login-tab');
-            const regTab = document.getElementById(prefix + '-register-tab');
-            const loginForm = document.getElementById(prefix + '-login');
-            const regForm = document.getElementById(prefix + '-register');
-            loginTab.addEventListener('click', () => { loginTab.classList.add('active'); regTab.classList.remove('active'); loginForm.style.display = 'block'; regForm.style.display = 'none'; });
-            regTab.addEventListener('click', () => { regTab.classList.add('active'); loginTab.classList.remove('active'); regForm.style.display = 'block'; loginForm.style.display = 'none'; });
+  <script defer src="app.js"></script>
+  <script>
+    // Simple, accessible tab toggles (UI only). Auth submit handlers are in app.js.
+    (function setupTabs() {
+      const loginTab = document.getElementById('user-login-tab');
+      const registerTab = document.getElementById('user-register-tab');
+      const loginForm = document.getElementById('user-login');
+      const registerForm = document.getElementById('user-register');
+
+      function activate(tab) {
+        const isLogin = tab === 'login';
+        loginTab.classList.toggle('active', isLogin);
+        registerTab.classList.toggle('active', !isLogin);
+        loginTab.setAttribute('aria-selected', String(isLogin));
+        registerTab.setAttribute('aria-selected', String(!isLogin));
+        if (isLogin) {
+          loginForm.removeAttribute('hidden');
+          registerForm.setAttribute('hidden', '');
+        } else {
+          registerForm.removeAttribute('hidden');
+          loginForm.setAttribute('hidden', '');
         }
-        setupTabs('admin');
-        setupTabs('user');
-    </script>
+      }
+
+      loginTab.addEventListener('click', () => activate('login'));
+      registerTab.addEventListener('click', () => activate('register'));
+    })();
+  </script>
 </body>
 
 </html>
