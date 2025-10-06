@@ -6,9 +6,15 @@
   <title>EventBuzz - Your Ticket</title>
   <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script defer src="supabase.js"></script>
+  <style>
+    #loading-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 18px; }
+    #user-banner { box-sizing: border-box; }
+  </style>
 </head>
 
 <body>
+  <div id="loading-overlay">Loading...</div>
   <header>
     <h1>🎟 EventBuzz</h1>
   </header>
@@ -26,54 +32,8 @@
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
-  <script src="app.js"></script>
-  <script>
-    // SIMPLE QR CODE THAT ACTUALLY WORKS
-    document.addEventListener('DOMContentLoaded', function () {
-      // Get your ticket data
-      const lastId = localStorage.getItem("lastTicketId");
-      const tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
-      const ticket = tickets.find(t => t.id === lastId) || tickets[tickets.length - 1];
-
-      if (ticket) {
-        const events = JSON.parse(localStorage.getItem("events") || "[]");
-        const event = events.find(e => e.id === ticket.eventId);
-
-        if (event) {
-          const seatCodes = ticket.seats.map(seatId => {
-            const [r, c] = seatId.split("-").map(Number);
-            return String.fromCharCode(65 + r) + (c + 1);
-          }).join(", ");
-
-          // Create simple text for QR code
-          const qrText = `EventBuzz Ticket
-Event: ${event.title}
-Date: ${new Date(event.date).toLocaleDateString()}
-Venue: ${event.venue}
-Seats: ${seatCodes}
-Buyer: ${ticket.buyer.name}
-Ticket ID: ${ticket.id}`;
-
-          // Generate QR code
-          setTimeout(() => {
-            try {
-              new QRious({
-                element: document.getElementById("qrcode"),
-                value: qrText,
-                size: 200,
-                background: 'white',
-                foreground: 'black'
-              });
-              console.log("QR code created!");
-            } catch (e) {
-              console.log("Error:", e);
-            }
-          }, 500);
-        }
-      }
-    });
-  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <script defer src="app.js"></script>
 </body>
 
 </html>

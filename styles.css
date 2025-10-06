@@ -139,16 +139,11 @@ header h1 {
   letter-spacing: 0.2px;
 }
 
-nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 nav a {
   color: var(--text);
   text-decoration: none;
   opacity: 0.9;
+  margin-left: 14px;
 }
 
 nav a:hover {
@@ -197,26 +192,6 @@ button,
 
 .btn.light {
   border: 1px solid var(--border);
-}
-
-.btn.danger {
-  background: linear-gradient(180deg, #ef4444, #dc2626);
-  color: white;
-}
-
-.btn.danger:hover {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-}
-
-/* Admin event list styles */
-.admin-row {
-  margin-bottom: 12px;
-}
-
-.admin-row .actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
 }
 
 /* Emphasize Login/Register CTA in nav account area */
@@ -370,6 +345,43 @@ button,
   color: #666;
 }
 
+/* Loading overlay (inserted dynamically) */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  font-size: 18px;
+  z-index: 99999;
+}
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: #111827;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+  opacity: 1;
+  transition: transform .25s ease, opacity .25s ease;
+}
+.toast.hide { opacity: 0; transform: translateY(-8px); }
+.toast.info { background: #111827; }
+.toast.success { background: #059669; }
+.toast.error { background: #dc2626; }
+
 .modal {
   position: fixed;
   top: 0;
@@ -392,49 +404,6 @@ button,
 
 #qr-container {
   margin: 20px auto;
-}
-
-/* Add these styles for auth forms */
-.auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 16px;
-}
-
-.auth-form input {
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-}
-
-.auth-form button {
-    margin-top: 8px;
-}
-
-/* Style for auth status display */
-#auth-status {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-}
-
-.account {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* Style for login/register link in nav */
-nav .btn.light {
-    padding: 8px 16px;
-    margin-left: 12px;
-    background: white;
-    border: 1px solid var(--primary);
-    color: var(--text);
-}
-
-nav .btn.light:hover {
-    background: #f8fafc;
 }
 
 @media (max-width: 640px) {
