@@ -46,13 +46,13 @@
     }
 
     .tab button {
-      background: #eef2ff;
-      color: #3730a3;
-      border: 1px solid #c7d2fe;
+      background: var(--secondary);
+      color: var(--text);
+      border: 1px solid rgba(150,179,194,0.35);
     }
 
     .tab button.active {
-      background: #c7d2fe;
+      background: rgba(157,221,239,0.6);
     }
   </style>
   <script defer src="supabase.js"></script>
@@ -63,6 +63,7 @@
     <h1>Account · EventBuzz</h1>
     <nav>
       <a href="index.html">Events</a>
+      <a href="index.html" class="btn light" style="margin-left:8px;">Home</a>
     </nav>
   </header>
 
