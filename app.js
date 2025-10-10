@@ -112,9 +112,18 @@
       const email = session.user.email || 'Signed in';
       const banner = document.createElement('div');
       banner.id = 'account-banner';
-      banner.style.cssText = 'padding:8px;background:#f1f1f1;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;font-size:14px;z-index:9999;';
+      // make the banner fixed and visible above the overlay; use a subtle semi-opaque background
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:8px;background:rgba(0,0,0,0.45);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;font-size:14px;z-index:99999;color:var(--text);';
       banner.innerHTML = `<div>Logged in as: ${email}</div><div><button id="logout-btn" class="btn light">Logout</button></div>`;
       document.body.insertBefore(banner, document.body.firstChild);
+      // push page content down so banner doesn't cover header/main
+      try {
+        const h = banner.getBoundingClientRect().height || 48;
+        // store existing padding-top so we can restore it on removal
+        const prevPad = document.body.style.paddingTop || '';
+        banner.dataset.prevBodyPad = prevPad;
+        document.body.style.paddingTop = (parseFloat(prevPad) || 0) + h + 'px';
+      } catch (e) { /* ignore */ }
       banner.querySelector('#logout-btn').addEventListener('click', async () => {
         try {
           showLoading('Signing out...');
@@ -123,7 +132,14 @@
           showToast('success', 'Logged out');
           // Remove banner and optionally redirect
           const b = document.getElementById('account-banner');
-          if (b) b.remove();
+          if (b) {
+            // restore previous body padding
+            try {
+              const prev = b.dataset.prevBodyPad || '';
+              document.body.style.paddingTop = prev;
+            } catch (e) { }
+            b.remove();
+          }
           // Stay on the page; user can keep browsing public content
         } catch (e) {
           hideLoading();
@@ -467,9 +483,10 @@
       if (!file) return;
       try {
         if (window.QrScanner) {
-          // Ensure worker path is set to avoid CORS/module resolution issues when using UMD build
-          if (!window.QrScanner.WORKER_PATH) {
-            window.QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner/qr-scanner-worker.min.js';
+          // Newer QrScanner releases (module builds) no longer use WORKER_PATH. Just call scanImage if available.
+          if (typeof window.QrScanner.scanImage !== 'function') {
+            showToast('error', 'QR decoder unavailable in this build.');
+            throw new Error('QrScanner.scanImage not available');
           }
           const result = await window.QrScanner.scanImage(file, { returnDetailedScanResult: true });
           const ticketId = result.data;
