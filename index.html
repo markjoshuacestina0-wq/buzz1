@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <title>EventBuzz - Events</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Montserrat font for splash caption -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script defer src="supabase.js"></script>
   <style>
@@ -15,22 +17,57 @@
 
 <body>
   <div id="loading-overlay">Loading...</div>
+
+  <!-- Splash overlay: centered opening logo -->
+  <div id="splash-overlay" class="splash-show" role="dialog" aria-label="Opening logo">
+    <div class="splash-inner">
+      <img src="images/WebLogo3.png" alt="EventBuzz logo" class="splash-logo" />
+      <div class="splash-caption">Your Pass to Everything</div>
+    </div>
+  </div>
   <header>
-    <h1>🎟 EventBuzz</h1>
+    <h1><a href="index.html" class="header-home">🎟 EventBuzz</a></h1>
     <nav>
       <a href="index.html">Events</a>
       <a href="checkin.html">Check-in</a>
+      <a href="auth.html" class="btn light" style="margin-left:8px;">Login / Register</a>
     </nav>
   </header>
 
   <main>
-    <section class="card" style="padding:16px; margin-bottom:12px; background: #ffffffdd;">
+    <section class="card" style="padding:16px; margin-bottom:12px;">
       <div class="card-body">
         <h2 style="margin-top:0;">Discover and Book Your Next Event</h2>
         <p class="muted">Browse events, pick your seats, and get your QR ticket instantly.</p>
       </div>
     </section>
     <h2>Upcoming Events</h2>
+
+    <!-- Auto-scrolling upcoming events gallery -->
+    <div class="upcoming-slider" aria-hidden="false">
+      <div class="slider-track">
+        <img src="images/pang upcoming events.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events1.webp" alt="upcoming event"/>
+        <img src="images/pang upcoming events2.webp" alt="upcoming event"/>
+        <img src="images/pang upcoming events3.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events4.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events5.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events6.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events7.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events8.jpg" alt="upcoming event"/>
+        <!-- duplicate for smooth infinite scroll -->
+        <img src="images/pang upcoming events.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events1.webp" alt="upcoming event"/>
+        <img src="images/pang upcoming events2.webp" alt="upcoming event"/>
+        <img src="images/pang upcoming events3.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events4.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events5.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events6.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events7.jpg" alt="upcoming event"/>
+        <img src="images/pang upcoming events8.jpg" alt="upcoming event"/>
+      </div>
+    </div>
+
     <div class="grid" style="grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
       <input type="text" id="search" placeholder="Search events, venues...">
       <button class="btn" onclick="sortEvents()">Sort by Date</button>
@@ -48,6 +85,32 @@
   <script defer src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script>
+    // Splash overlay: auto-hide after a short delay or when clicked
+    (function() {
+      const overlay = document.getElementById('splash-overlay');
+      if (!overlay) return;
+      const HIDE_DELAY = 2500; // ms
+
+      function hideOverlay() {
+        if (!overlay) return;
+        overlay.classList.remove('splash-show');
+        overlay.classList.add('splash-hide');
+        overlay.addEventListener('animationend', () => {
+          try { overlay.remove(); } catch (e) { /* ignore */ }
+        }, { once: true });
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // Small timeout to ensure paint for the entry animation
+        setTimeout(() => {
+          setTimeout(hideOverlay, HIDE_DELAY);
+        }, 50);
+      });
+
+      overlay.addEventListener('click', hideOverlay);
+    })();
   </script>
 </body>
 
