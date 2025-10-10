@@ -405,19 +405,49 @@
     (async () => {
       // determine ticket ID from DB or session
       const lastId = window.DB.lastTicketId || (await supabaseClient.from('tickets').select('id').order('created_at', { ascending: false }).limit(1)).data?.[0]?.id;
-  const { data: ticketData } = await supabaseClient.from('tickets').select('*').eq('id', lastId).limit(1);
-  const ticket = ticketData?.[0] || null;
+      const { data: ticketData } = await supabaseClient.from('tickets').select('*').eq('id', lastId).limit(1);
+      const ticket = ticketData?.[0] || null;
       if (!ticket) { document.getElementById('ticket').innerHTML = '<p>No ticket found.</p>'; return; }
       const { data: ev } = await supabaseClient.from('events').select('*').eq('id', ticket.eventid).single(); const event = ev || { title: 'Unknown', date: ticket.created_at, venue: '' };
-      document.getElementById('ticket').innerHTML = `\n      <div class="card ticket-card">\n        <div class="card-body">\n          <h2>${event.title}</h2>\n          <p class="muted">${formatDate(event.date)} \u00b7 ${event.venue}</p>\n          <p><strong>Seats:</strong> ${ticket.seats.map(seatIdToCode).join(', ')}</p>\n          <p><strong>Buyer:</strong> ${ticket.buyer.name} (${ticket.buyer.email})</p>\n          <p class="muted">Ticket ID: ${ticket.id}</p>\n        </div>\n      </div>\n    `;
+      document.getElementById('ticket').innerHTML = `
+      <div class="card ticket-card">
+        <div class="card-body">
+          <h2>${event.title}</h2>
+          <p class="muted">${formatDate(event.date)} · ${event.venue}</p>
+          <p><strong>Seats:</strong> ${ticket.seats.map(seatIdToCode).join(', ')}</p>
+          <p><strong>Buyer:</strong> ${ticket.buyer.name} (${ticket.buyer.email})</p>
+          <p class="muted">Ticket ID: ${ticket.id}</p>
+        </div>
+      </div>
+    `;
       // QR
       const generateQRCode = () => {
+        const ticketNumber = ticket.id;
+        const draw = () => {
+          const qrElement = document.getElementById('qrcode');
+          if (qrElement) {
+            try {
+              new QRious({
+                element: qrElement,
+                value: String(ticketNumber),
+                size: 200
+              });
+            } catch (e) {
+              console.warn('QRious error', e);
+              showToast('error', 'QR generation failed');
+            }
+          }
+        };
         if (typeof QRious !== 'undefined') {
-          const ticketHtml = `<!doctype html><html><body><h2>${event.title}</h2><div>Ticket ID: ${ticket.id}</div></body></html>`;
-          const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(ticketHtml)}`;
-          const qrElement = document.getElementById('qrcode'); if (qrElement) { try { new QRious({ element: qrElement, value: dataUrl, size: 300 }); } catch (e) { console.warn('QRious error', e); showToast('error','QR generation failed'); } }
-        } else setTimeout(generateQRCode, 200);
+          draw();
+        } else {
+          setTimeout(draw, 200);
+        }
+        return ticketNumber;
       };
+      // Expose helpers so callers can retrieve the ticket number used for the QR
+      window.generateTicketQR = generateQRCode;
+      window.getTicketNumber = () => ticket.id;
       generateQRCode();
       const emailBtn = document.getElementById('email-receipt'); if (emailBtn) { const subject = encodeURIComponent(`Your EventBuzz Ticket: ${event.title}`); const body = encodeURIComponent(`Hi ${ticket.buyer.name},\n\nEvent: ${event.title}\nDate: ${formatDate(event.date)}\nVenue: ${event.venue}\nSeats: ${ticket.seats.map(seatIdToCode).join(', ')}\nTicket ID: ${ticket.id}`); emailBtn.addEventListener('click', () => { window.location.href = `mailto:${ticket.buyer.email}?subject=${subject}&body=${body}`; }); }
     })();
@@ -425,7 +455,7 @@
 
   // Check-in
   window.checkIn = async function () {
-    const id = (document.getElementById('ticket-id')?.value || '').trim(); if (!id) { showToast('error','Please enter a ticket ID'); return; } const resultEl = document.getElementById('checkin-result'); if (!resultEl) return; try { showLoading('Validating ticket...'); const { data: tickets } = await supabaseClient.from('tickets').select('*').eq('id', id).limit(1); const ticket = tickets?.[0]; if (!ticket) { hideLoading(); resultEl.textContent = '\u274c Ticket not found.'; resultEl.className = 'error'; return; } if (ticket.checkedin) { hideLoading(); resultEl.textContent = '\u26a0\ufe0f Ticket already checked in.'; resultEl.className = 'warn'; return; } ticket.checkedin = true; ticket.checkedin_at = new Date().toISOString(); await updateTicket(ticket); hideLoading(); resultEl.textContent = '\u2705 Ticket valid. Checked in!'; resultEl.className = 'success'; showToast('success','Checked in'); } catch (err) { hideLoading(); resultEl.textContent = 'Error checking in: ' + (err.message || JSON.stringify(err)); resultEl.className = 'error'; showToast('error','Check-in failed'); }
+    const id = (document.getElementById('ticket-id')?.value || '').trim(); if (!id) { showToast('error','Please enter a ticket ID'); return; } const resultEl = document.getElementById('checkin-result'); if (!resultEl) return; try { showLoading('Validating ticket...'); const { data: tickets } = await supabaseClient.from('tickets').select('*').eq('id', id).limit(1); const ticket = tickets?.[0]; if (!ticket) { hideLoading(); resultEl.textContent = '❌ Ticket not found.'; resultEl.className = 'error'; return; } if (ticket.checkedin) { hideLoading(); resultEl.textContent = '⚠️ Ticket already checked in.'; resultEl.className = 'warn'; return; } ticket.checkedin = true; ticket.checkedin_at = new Date().toISOString(); await updateTicket(ticket); hideLoading(); resultEl.textContent = '✅ Ticket valid. Checked in!'; resultEl.className = 'success'; showToast('success','Checked in'); } catch (err) { hideLoading(); resultEl.textContent = 'Error checking in: ' + (err.message || JSON.stringify(err)); resultEl.className = 'error'; showToast('error','Check-in failed'); }
   };
 
   // QR file upload for check-in (requires qr-scanner to be included on that page)
@@ -437,20 +467,24 @@
       if (!file) return;
       try {
         if (window.QrScanner) {
-          const result = await window.QrScanner.scanImage(file);
-          if (result.startsWith('data:text/html')) {
-            const html = decodeURIComponent(result.replace(/^data:text\/html(;charset=[^,]+)?,/, ''));
-            const m = html.match(/Ticket ID:\s*([a-z0-9_\-]+)/i);
-            if (m) { document.getElementById('ticket-id').value = m[1]; checkIn(); return; }
+          // Ensure worker path is set to avoid CORS/module resolution issues when using UMD build
+          if (!window.QrScanner.WORKER_PATH) {
+            window.QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner/qr-scanner-worker.min.js';
           }
-          if (result.startsWith('tkt_')) { document.getElementById('ticket-id').value = result; checkIn(); return; }
-          document.getElementById('ticket-id').value = result; checkIn();
+          const result = await window.QrScanner.scanImage(file, { returnDetailedScanResult: true });
+          const ticketId = result.data;
+          if (ticketId && ticketId.startsWith('tkt_')) {
+            document.getElementById('ticket-id').value = ticketId;
+            checkIn();
+          } else {
+            showToast('error', 'Invalid QR code.');
+          }
         } else {
           showToast('error', 'QR decoder not loaded.');
         }
       } catch (err) {
         console.error(err);
-        showToast('error', 'Failed to decode QR image.');
+        showToast('error', 'Failed to decode QR image' + (err && err.message ? ': ' + err.message : ''));
       } finally {
         fileInput.value = '';
       }

@@ -6,10 +6,17 @@
   <title>EventBuzz - Check-in</title>
   <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/qr-scanner/qr-scanner.umd.min.js"></script>
+  <!-- Use ES module build of qr-scanner and expose to window -->
+  <script type="module">
+    import QrScanner from 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js';
+    // Expose globally for app.js usage
+    window.QrScanner = QrScanner;
+  </script>
+  <!-- Fallback decoder without workers -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>#loading-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);color:#fff;font-size:18px;}#user-banner{box-sizing:border-box;}</style>\n<script src="supabase.js"></script>\n</head>
 
-<body>\n<div id="loading-overlay">Loading...</div>\n
+<body><div id="loading-overlay">Loading...</div>
   <header>
     <h1>Check-in</h1>
     <nav>
